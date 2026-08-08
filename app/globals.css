@@ -1,0 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600;700&family=Poppins:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=Merriweather:wght@400;700;900&family=Montserrat:wght@500;600;700;800&family=Lora:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-forest: #1a3a2a;
+  --color-pine:   #2d5a3d;
+  --color-moss:   #4a7c5a;
+  --color-sage:   #7aab8a;
+  --color-earth:  #6b4c2a;
+  --color-clay:   #a0703f;
+  --color-wheat:  #d4a853;
+  --color-cream:  #f5f0e8;
+  --color-linen:  #ede8dc;
+  --color-chalk:  #faf8f4;
+  --color-wine:   #5E0E3A;
+  --color-wine-dark: #430A29;
+
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body: 'DM Sans', sans-serif;
+  --heading-scale: 1;
+  --body-scale: 1;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { font-family: var(--font-body); background: #faf8f4; color: #1a3a2a; overflow-x: hidden; }
+
+:where(h1, h2, h3, h4, h5, h6, .font-display) { font-size: calc(1em * var(--heading-scale)); }
+:where(p, .font-body) { font-size: calc(1em * var(--body-scale)); }
+.theme-bold :where(h1, h2, h3, h4, h5, h6, .font-display) { font-weight: bolder; }
+.theme-bold :where(p, .font-body) { font-weight: bolder; }
+
+.fade-in-hero { opacity: 0; transform: translateY(28px); transition: opacity 0.7s ease, transform 0.7s ease; }
+.fade-in-hero.visible { opacity: 1; transform: translateY(0); }
