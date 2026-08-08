@@ -1,17 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import SaveBar from '../SaveBar';
+import SectionLoading from '../SectionLoading';
 import { useContentSave } from '../useContentSave';
+import { useSectionContent } from '../useSectionContent';
+import { defaultPracticeAreas } from '@/lib/seed-data';
 import type { PracticeArea } from '@/types';
 
 const inputClass =
   'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-wine focus:ring-2 focus:ring-wine/15';
 
-export default function PracticeAreasEditor({ initial }: { initial: PracticeArea[] }) {
-  const [cards, setCards] = useState([...initial].sort((a, b) => a.order - b.order));
+export default function PracticeAreasEditor() {
+  const { data: content, isLoading } = useSectionContent<PracticeArea[]>('practiceAreas', defaultPracticeAreas);
+  const [cards, setCards] = useState<PracticeArea[]>([...defaultPracticeAreas].sort((a, b) => a.order - b.order));
   const { save, saving, saved, error } = useContentSave('practiceAreas');
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (content) setCards([...content].sort((a, b) => a.order - b.order));
+  }, [content]);
 
   function update(id: string, patch: Partial<PracticeArea>) {
     setCards((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c)));
@@ -62,6 +70,8 @@ export default function PracticeAreasEditor({ initial }: { initial: PracticeArea
     [updated[idx], updated[idx + dir]] = [updated[idx + dir], updated[idx]];
     setCards(updated.map((c, i) => ({ ...c, order: i + 1 })));
   }
+
+  if (isLoading) return <SectionLoading />;
 
   return (
     <div className="space-y-4">

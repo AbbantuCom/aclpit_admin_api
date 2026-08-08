@@ -1,18 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { getFirebaseAuth } from '@/lib/firebase';
+import { contentQueryKey } from './useSectionContent';
 
 export function useContentSave(section: string) {
-  const [saving, setSaving] = useState(false);
+  const queryClient = useQueryClient();
   const [saved, setSaved] = useState(false);
-  const [error, setError] = useState('');
 
-  async function save(data: unknown) {
-    setSaving(true);
-    setSaved(false);
-    setError('');
-    try {
+  const mutation = useMutation({
+    mutationFn: async (data: unknown) => {
       const token = await getFirebaseAuth().currentUser?.getIdToken();
       const res = await fetch(`/api/content/${section}`, {
         method: 'PUT',
@@ -23,14 +21,27 @@ export function useContentSave(section: string) {
         body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: contentQueryKey(section) });
       setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Save failed');
-    } finally {
-      setSaving(false);
-    }
-  }
+    },
+  });
 
-  return { save, saving, saved, error };
+  useEffect(() => {
+    if (!saved) return;
+    const timer = setTimeout(() => setSaved(false), 3000);
+    return () => clearTimeout(timer);
+  }, [saved]);
+
+  return {
+    save: (data: unknown) => {
+      setSaved(false);
+      mutation.mutate(data);
+    },
+    saving: mutation.isPending,
+    saved,
+    error: mutation.isError ? (mutation.error instanceof Error ? mutation.error.message : 'Save failed') : '',
+  };
 }

@@ -1,16 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import SaveBar from '../SaveBar';
+import SectionLoading from '../SectionLoading';
 import { useContentSave } from '../useContentSave';
+import { useSectionContent } from '../useSectionContent';
+import { defaultContact } from '@/lib/seed-data';
 import type { ContactContent, ContactSocials } from '@/types';
 
 const inputClass =
   'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-wine focus:ring-2 focus:ring-wine/15';
 
-export default function ContactEditor({ initial }: { initial: ContactContent }) {
-  const [data, setData] = useState(initial);
+export default function ContactEditor() {
+  const { data: content, isLoading } = useSectionContent<ContactContent>('contact', defaultContact);
+  const [data, setData] = useState<ContactContent>(defaultContact);
   const { save, saving, saved, error } = useContentSave('contact');
+
+  useEffect(() => {
+    if (content) setData(content);
+  }, [content]);
 
   function set<K extends keyof ContactContent>(key: K, value: ContactContent[K]) {
     setData((d) => ({ ...d, [key]: value }));
@@ -54,6 +62,8 @@ export default function ContactEditor({ initial }: { initial: ContactContent }) 
     { key: 'youtube', label: 'YouTube URL' },
     { key: 'facebook', label: 'Facebook URL' },
   ];
+
+  if (isLoading) return <SectionLoading />;
 
   return (
     <div className="space-y-8">

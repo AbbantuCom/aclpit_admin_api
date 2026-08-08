@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import QueryProvider from '@/components/admin/QueryProvider';
 
 interface LayoutContextValue {
   openSidebar: () => void;
@@ -47,8 +48,10 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <AuthProvider>
-      <AdminGuard>{children}</AdminGuard>
-    </AuthProvider>
+    <QueryProvider>
+      <AuthProvider>
+        <AdminGuard>{children}</AdminGuard>
+      </AuthProvider>
+    </QueryProvider>
   );
 }

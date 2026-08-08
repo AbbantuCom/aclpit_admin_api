@@ -1,18 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import ImageUpload from '../ImageUpload';
 import SaveBar from '../SaveBar';
+import SectionLoading from '../SectionLoading';
 import { useContentSave } from '../useContentSave';
+import { useSectionContent } from '../useSectionContent';
+import { defaultServices } from '@/lib/seed-data';
 import type { ServiceItem } from '@/types';
 
 const inputClass =
   'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-wine focus:ring-2 focus:ring-wine/15';
 
-export default function ServicesEditor({ initial }: { initial: ServiceItem[] }) {
-  const [cards, setCards] = useState([...initial].sort((a, b) => a.order - b.order));
+export default function ServicesEditor() {
+  const { data: content, isLoading } = useSectionContent<ServiceItem[]>('services', defaultServices);
+  const [cards, setCards] = useState<ServiceItem[]>([...defaultServices].sort((a, b) => a.order - b.order));
   const { save, saving, saved, error } = useContentSave('services');
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (content) setCards([...content].sort((a, b) => a.order - b.order));
+  }, [content]);
 
   function update(id: string, patch: Partial<ServiceItem>) {
     setCards((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c)));
@@ -65,6 +73,8 @@ export default function ServicesEditor({ initial }: { initial: ServiceItem[] }) 
     [updated[idx], updated[idx + dir]] = [updated[idx + dir], updated[idx]];
     setCards(updated.map((c, i) => ({ ...c, order: i + 1 })));
   }
+
+  if (isLoading) return <SectionLoading />;
 
   return (
     <div className="space-y-4">

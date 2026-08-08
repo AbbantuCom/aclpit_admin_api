@@ -1,17 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import SaveBar from '../SaveBar';
+import SectionLoading from '../SectionLoading';
 import { useContentSave } from '../useContentSave';
+import { useSectionContent } from '../useSectionContent';
+import { defaultDialogues } from '@/lib/seed-data';
 import type { DialogueItem } from '@/types';
 
 const inputClass =
   'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-wine focus:ring-2 focus:ring-wine/15';
 
-export default function DialoguesEditor({ initial }: { initial: DialogueItem[] }) {
-  const [items, setItems] = useState([...initial].sort((a, b) => a.order - b.order));
+export default function DialoguesEditor() {
+  const { data: content, isLoading } = useSectionContent<DialogueItem[]>('dialogues', defaultDialogues);
+  const [items, setItems] = useState<DialogueItem[]>([...defaultDialogues].sort((a, b) => a.order - b.order));
   const { save, saving, saved, error } = useContentSave('dialogues');
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (content) setItems([...content].sort((a, b) => a.order - b.order));
+  }, [content]);
 
   function update(id: string, patch: Partial<DialogueItem>) {
     setItems((it) => it.map((i) => (i.id === id ? { ...i, ...patch } : i)));
@@ -42,6 +50,8 @@ export default function DialoguesEditor({ initial }: { initial: DialogueItem[] }
     [updated[idx], updated[idx + dir]] = [updated[idx + dir], updated[idx]];
     setItems(updated.map((i, n) => ({ ...i, order: n + 1 })));
   }
+
+  if (isLoading) return <SectionLoading />;
 
   return (
     <div className="space-y-4">

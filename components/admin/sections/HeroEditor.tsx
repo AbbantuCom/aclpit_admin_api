@@ -1,18 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import ImageUpload from '../ImageUpload';
 import SaveBar from '../SaveBar';
+import SectionLoading from '../SectionLoading';
 import { useContentSave } from '../useContentSave';
+import { useSectionContent } from '../useSectionContent';
+import { defaultHero } from '@/lib/seed-data';
 import type { HeroContent } from '@/types';
 
-export default function HeroEditor({ initial }: { initial: HeroContent }) {
-  const [data, setData] = useState(initial);
+export default function HeroEditor() {
+  const { data: content, isLoading } = useSectionContent<HeroContent>('hero', defaultHero);
+  const [data, setData] = useState<HeroContent>(defaultHero);
   const { save, saving, saved, error } = useContentSave('hero');
+
+  useEffect(() => {
+    if (content) setData(content);
+  }, [content]);
 
   function set<K extends keyof HeroContent>(key: K, value: HeroContent[K]) {
     setData((d) => ({ ...d, [key]: value }));
   }
+
+  if (isLoading) return <SectionLoading />;
 
   const field = (label: string, key: keyof HeroContent, type = 'text') => (
     <div>

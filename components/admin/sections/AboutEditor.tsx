@@ -1,17 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import ImageUpload from '../ImageUpload';
 import SaveBar from '../SaveBar';
+import SectionLoading from '../SectionLoading';
 import { useContentSave } from '../useContentSave';
+import { useSectionContent } from '../useSectionContent';
+import { defaultAbout } from '@/lib/seed-data';
 import type { AboutContent, AboutObjective, AboutStakeholder } from '@/types';
 
 const inputClass =
   'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-wine focus:ring-2 focus:ring-wine/15';
 
-export default function AboutEditor({ initial }: { initial: AboutContent }) {
-  const [data, setData] = useState(initial);
+export default function AboutEditor() {
+  const { data: content, isLoading } = useSectionContent<AboutContent>('about', defaultAbout);
+  const [data, setData] = useState<AboutContent>(defaultAbout);
   const { save, saving, saved, error } = useContentSave('about');
+
+  useEffect(() => {
+    if (content) setData(content);
+  }, [content]);
 
   function set<K extends keyof AboutContent>(key: K, value: AboutContent[K]) {
     setData((d) => ({ ...d, [key]: value }));
@@ -109,6 +117,8 @@ export default function AboutEditor({ initial }: { initial: AboutContent }) {
       </div>
     );
   }
+
+  if (isLoading) return <SectionLoading />;
 
   return (
     <div className="space-y-8">

@@ -1,17 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import SaveBar from '../SaveBar';
+import SectionLoading from '../SectionLoading';
 import { useContentSave } from '../useContentSave';
+import { useSectionContent } from '../useSectionContent';
+import { defaultFooter } from '@/lib/seed-data';
 import type { FooterContent } from '@/types';
 
-export default function FooterEditor({ initial }: { initial: FooterContent }) {
-  const [data, setData] = useState(initial);
+export default function FooterEditor() {
+  const { data: content, isLoading } = useSectionContent<FooterContent>('footer', defaultFooter);
+  const [data, setData] = useState<FooterContent>(defaultFooter);
   const { save, saving, saved, error } = useContentSave('footer');
+
+  useEffect(() => {
+    if (content) setData(content);
+  }, [content]);
 
   function set<K extends keyof FooterContent>(key: K, value: string) {
     setData((d) => ({ ...d, [key]: value }));
   }
+
+  if (isLoading) return <SectionLoading />;
 
   return (
     <div className="space-y-8">

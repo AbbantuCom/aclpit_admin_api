@@ -1,19 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import ImageUpload from '../ImageUpload';
 import DocumentUpload from '../DocumentUpload';
 import SaveBar from '../SaveBar';
+import SectionLoading from '../SectionLoading';
 import { useContentSave } from '../useContentSave';
+import { useSectionContent } from '../useSectionContent';
+import { defaultPublications } from '@/lib/seed-data';
 import type { PublicationItem } from '@/types';
 
 const inputClass =
   'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-wine focus:ring-2 focus:ring-wine/15';
 
-export default function PublicationsEditor({ initial }: { initial: PublicationItem[] }) {
-  const [items, setItems] = useState([...initial].sort((a, b) => a.order - b.order));
+export default function PublicationsEditor() {
+  const { data: content, isLoading } = useSectionContent<PublicationItem[]>('publications', defaultPublications);
+  const [items, setItems] = useState<PublicationItem[]>([...defaultPublications].sort((a, b) => a.order - b.order));
   const { save, saving, saved, error } = useContentSave('publications');
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (content) setItems([...content].sort((a, b) => a.order - b.order));
+  }, [content]);
 
   function update(id: string, patch: Partial<PublicationItem>) {
     setItems((it) => it.map((i) => (i.id === id ? { ...i, ...patch } : i)));
@@ -46,6 +54,8 @@ export default function PublicationsEditor({ initial }: { initial: PublicationIt
     [updated[idx], updated[idx + dir]] = [updated[idx + dir], updated[idx]];
     setItems(updated.map((i, n) => ({ ...i, order: n + 1 })));
   }
+
+  if (isLoading) return <SectionLoading />;
 
   return (
     <div className="space-y-4">
