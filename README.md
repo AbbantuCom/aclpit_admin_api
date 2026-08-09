@@ -14,10 +14,11 @@ Admin panel and content API backend for the **African Centre for Law and Public 
 6. [First-Time Setup](#first-time-setup)
 7. [Running the App](#running-the-app)
 8. [Admin Panel Guide](#admin-panel-guide)
-9. [Public Content API](#public-content-api)
-10. [User & Access Management](#user--access-management)
-11. [Media Uploads](#media-uploads)
-12. [Deployment](#deployment)
+9. [Draft, Preview & Publish](#draft-preview--publish)
+10. [Public Content API](#public-content-api)
+11. [User & Access Management](#user--access-management)
+12. [Media Uploads](#media-uploads)
+13. [Deployment](#deployment)
 
 ---
 
@@ -67,7 +68,13 @@ aclpit_admin_api/
 │       ├── auth/reset-password/  ← Validate token (GET) / set password (POST)
 │       ├── auth/accept-invite/   ← Validate invite (GET) / activate account (POST)
 │       ├── auth/dev-reset/       ← Dev-only: wipe users so setup can rerun
-│       ├── content/[section]    ← GET (public, CORS-enabled) / PUT (admin) site content
+│       ├── content/[section]    ← GET published (public, CORS-enabled) / GET ?state=draft
+│       │                          / PUT draft (admin) site content
+│       │   ├── publish/         ← Promote the draft to live
+│       │   ├── discard/         ← Reset the draft back to the live copy
+│       │   └── preview-link/    ← Signed, short-lived preview URL for the client site
+│       ├── content/status/      ← Which sections have unpublished changes
+│       ├── content/publish-all/ ← Publish every pending section at once
 │       ├── content/seed/        ← Seed default content
 │       ├── contact/             ← POST (public, CORS-enabled) contact form submissions
 │       ├── documents/presign/   ← Presigned PDF upload (publications)
@@ -190,11 +197,13 @@ R2_PUBLIC_URL=https://media.aclpit.org
 CLIENT_URL=https://aclpit.org
 CLIENT_ORIGIN=https://aclpit.org
 REVALIDATE_SECRET=another-long-random-string-shared-with-the-client-repo
+PREVIEW_SECRET=a-third-long-random-string-shared-with-the-client-repo
 ```
 
-- **`CLIENT_URL`** — base URL of the public client site. After a content section is saved, this app POSTs to `${CLIENT_URL}/api/revalidate` so the client site can drop its cache for that section. If unreachable, the failure is logged (`console.warn`) and does not affect the save.
+- **`CLIENT_URL`** — base URL of the public client site. Used for two things: after a section is **published**, this app POSTs to `${CLIENT_URL}/api/revalidate` so the client site can drop its cache for that section; and preview links point at `${CLIENT_URL}/api/preview`. If unreachable, the failure is logged (`console.warn`) and does not affect the publish.
 - **`CLIENT_ORIGIN`** — comma-separated list of origins allowed to call the public endpoints (`GET /api/content/[section]`, `POST /api/contact`) cross-origin, e.g. `https://aclpit.org,https://staging.aclpit.org`.
 - **`REVALIDATE_SECRET`** — shared secret sent in the revalidate webhook body; the client repo's `/api/revalidate` route should verify it matches before clearing its cache.
+- **`PREVIEW_SECRET`** — shared secret for content previews. Signs the short-lived preview links handed to editors, and authenticates the client site's server-side reads of draft content. Must match `PREVIEW_SECRET` in the client repo. If unset, previewing is disabled (the admin panel says so) but saving and publishing are unaffected.
 
 ---
 
@@ -254,14 +263,67 @@ The app runs on **http://localhost:3000** by default.
 1. Go to `/auth` and sign in with your **email address or username** and password
 2. You are redirected to `/admin`
 3. Pick a section from the sidebar or dashboard
-4. Edit the fields directly in the form and click **Save Changes**
+4. Edit the fields directly in the form, then **Save Draft** → **Preview** → **Publish**
 
 Forgot your password? Use the link on the sign-in page — you will receive a reset
 link that is valid for one hour and can only be used once.
 
-Saving a section writes to MongoDB immediately and (if `CLIENT_URL` is configured) tells the public client site to revalidate its cache for that section.
+**Saving never changes the public site.** A save writes a private draft; the live
+site keeps serving the last published version until you press **Publish**. See
+[Draft, Preview & Publish](#draft-preview--publish) below.
 
-Card-list sections (**Services**, **Practice Areas**, **Publications**, **Dialogues**) support add / remove / reorder — use the **▲ / ▼** arrows to move a card up or down, then **Save Changes** to persist the new order.
+Card-list sections (**Services**, **Practice Areas**, **Publications**, **Dialogues**) support add / remove / reorder — use the **▲ / ▼** arrows to move a card up or down, then **Save Draft** to persist the new order.
+
+---
+
+## Draft, Preview & Publish
+
+Every content section stores two independent copies:
+
+| Copy | Written by | Read by |
+| --- | --- | --- |
+| `draft` | Save Draft, in the admin panel | the admin editors, and the public site **only in preview mode** |
+| `published` | Publish | the public site, for everyone |
+
+So a mistake saved in the admin panel is never visible to visitors. It sits in the
+draft until someone deliberately publishes it.
+
+### The workflow
+
+1. **Save Draft** — persists your edits privately. The bar shows *"Draft saved — not
+   live yet"* and an **Unpublished changes** pill appears.
+2. **Preview** — saves the draft first (so you preview exactly what is on screen),
+   then opens the **real public site** in a new tab, rendering your draft. A wine-red
+   *Preview mode* bar at the bottom marks it, with an **Exit preview** button.
+   Other visitors continue to see the published site the whole time.
+3. **Publish** — copies the draft over the published copy and tells the client site
+   to drop its cache, so the change appears immediately. Disabled when the draft and
+   the live site already match.
+4. **Discard draft** — if the edits were a mistake, this throws the draft away and
+   resets it to whatever is currently live. Asks for confirmation first.
+
+### Seeing what is waiting
+
+- The sidebar shows an amber dot next to any section with unpublished changes, and a
+  count badge on **Pending Changes**.
+- **Pending Changes** (`/admin/pending`) lists every section with its state, who
+  edited it and when, and offers **Publish all** for going live in one step.
+- The dashboard shows a banner when anything is waiting.
+
+### Preview requirements
+
+Preview needs `CLIENT_URL` and `PREVIEW_SECRET` set here, and the same
+`PREVIEW_SECRET` set in the client repo. Without them the admin panel reports that
+preview is not configured — saving and publishing still work as normal.
+
+Preview links are HMAC-signed and **expire after 15 minutes**, so a link that leaks
+out of an editor's browser history cannot be used to read drafts later.
+
+### Existing content
+
+Sections saved before this feature existed carry a single legacy `data` field. Those
+are treated as **published with no pending changes** — nothing needs migrating, and
+the first publish of such a section replaces the legacy field.
 
 ---
 
@@ -269,13 +331,30 @@ Card-list sections (**Services**, **Practice Areas**, **Publications**, **Dialog
 
 The separate public client repo reads content from this API — no authentication required for these two routes, but cross-origin requests are only allowed from origins listed in `CLIENT_ORIGIN`:
 
-- **`GET /api/content/:section`** → `{ section, data, updatedAt, updatedBy }` (or `{ data: null }` if unseeded)
+- **`GET /api/content/:section`** → the **published** copy, as
+  `{ section, data, state, updatedAt, updatedBy, hasUnpublishedChanges, publishedAt, neverPublished }`
+  (`data` is `null` if the section was never published)
 - **`POST /api/contact`** → accepts `{ name, email, subject, message }`, stores the submission for the **Messages** inbox
+
+### Draft and publishing routes
+
+These are **not** public. Each requires a valid session belonging to an active
+account with a content role — except the draft read, which the client site's server
+may also perform by sending the shared secret in an `x-preview-secret` header.
+
+| Route | Does |
+| --- | --- |
+| `GET /api/content/:section?state=draft` | Reads the working copy (session **or** `x-preview-secret`) |
+| `PUT /api/content/:section` | Saves the draft. Does **not** touch the live site |
+| `POST /api/content/:section/publish` | Promotes the draft to published, then revalidates the client cache |
+| `POST /api/content/:section/discard` | Resets the draft back to the published copy |
+| `POST /api/content/publish-all` | Publishes every section with pending changes |
+| `GET /api/content/status` | Publish state for all sections, for the review screen |
+| `GET /api/content/:section/preview-link` | Mints a signed 15-minute preview URL |
 
 Every other route is authenticated by the **httpOnly session cookie**, which the
 browser sends automatically on same-origin requests. There is no bearer token to
-manage: `PUT /api/content/:section` and all the admin routes simply require a
-valid session belonging to an active account with a sufficient role.
+manage.
 
 ---
 

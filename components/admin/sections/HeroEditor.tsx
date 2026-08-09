@@ -12,7 +12,7 @@ import type { HeroContent } from '@/types';
 export default function HeroEditor() {
   const { data: content, isLoading } = useSectionContent<HeroContent>('hero', defaultHero);
   const [data, setData] = useState<HeroContent>(defaultHero);
-  const { save, saving, saved, error } = useContentSave('hero');
+  const { save, ...workflow } = useContentSave('hero');
 
   useEffect(() => {
     if (content) setData(content);
@@ -99,7 +99,7 @@ export default function HeroEditor() {
         </div>
       </div>
 
-      <SaveBar saving={saving} saved={saved} error={error} onSave={() => save(data)} />
+      <SaveBar {...workflow} onSave={() => save(data)} />
     </div>
   );
 }

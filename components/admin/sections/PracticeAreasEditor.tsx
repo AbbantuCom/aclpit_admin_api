@@ -14,7 +14,7 @@ const inputClass =
 export default function PracticeAreasEditor() {
   const { data: content, isLoading } = useSectionContent<PracticeArea[]>('practiceAreas', defaultPracticeAreas);
   const [cards, setCards] = useState<PracticeArea[]>([...defaultPracticeAreas].sort((a, b) => a.order - b.order));
-  const { save, saving, saved, error } = useContentSave('practiceAreas');
+  const { save, ...workflow } = useContentSave('practiceAreas');
   const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
@@ -136,7 +136,7 @@ export default function PracticeAreasEditor() {
         </div>
       ))}
 
-      <SaveBar saving={saving} saved={saved} error={error} onSave={() => save(cards)} />
+      <SaveBar {...workflow} onSave={() => save(cards)} />
     </div>
   );
 }

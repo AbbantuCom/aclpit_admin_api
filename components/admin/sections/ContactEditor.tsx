@@ -14,7 +14,7 @@ const inputClass =
 export default function ContactEditor() {
   const { data: content, isLoading } = useSectionContent<ContactContent>('contact', defaultContact);
   const [data, setData] = useState<ContactContent>(defaultContact);
-  const { save, saving, saved, error } = useContentSave('contact');
+  const { save, ...workflow } = useContentSave('contact');
 
   useEffect(() => {
     if (content) setData(content);
@@ -116,7 +116,7 @@ export default function ContactEditor() {
         </div>
       </div>
 
-      <SaveBar saving={saving} saved={saved} error={error} onSave={() => save(data)} />
+      <SaveBar {...workflow} onSave={() => save(data)} />
     </div>
   );
 }

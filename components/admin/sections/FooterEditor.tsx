@@ -11,7 +11,7 @@ import type { FooterContent } from '@/types';
 export default function FooterEditor() {
   const { data: content, isLoading } = useSectionContent<FooterContent>('footer', defaultFooter);
   const [data, setData] = useState<FooterContent>(defaultFooter);
-  const { save, saving, saved, error } = useContentSave('footer');
+  const { save, ...workflow } = useContentSave('footer');
 
   useEffect(() => {
     if (content) setData(content);
@@ -46,7 +46,7 @@ export default function FooterEditor() {
           <p className="text-xs text-gray-400 mt-1">Used as &ldquo;© {new Date().getFullYear()} {data.copyrightName || '…'}. All rights reserved.&rdquo;</p>
         </div>
       </div>
-      <SaveBar saving={saving} saved={saved} error={error} onSave={() => save(data)} />
+      <SaveBar {...workflow} onSave={() => save(data)} />
     </div>
   );
 }

@@ -4,19 +4,23 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { useContentStatus } from './useContentStatus';
 import { USER_MANAGEMENT_ROLES } from '@/types';
 
 // `requiresUserManagement` items are hidden from staff, who are redirected away
 // from /admin/users by proxy.ts anyway — this just avoids showing a dead link.
+// `section` links a nav item to a content section, so it can show an
+// unpublished-changes dot.
 const navItems = [
   { label: 'Dashboard',       href: '/admin',                icon: '⊞' },
-  { label: 'Hero',            href: '/admin/hero',           icon: '▶' },
-  { label: 'About',           href: '/admin/about',          icon: '◉' },
-  { label: 'Services',        href: '/admin/services',       icon: '◈' },
-  { label: 'Practice Areas',  href: '/admin/practice-areas', icon: '⚖' },
-  { label: 'Publications',    href: '/admin/publications',   icon: '▤' },
-  { label: 'Dialogues',       href: '/admin/dialogues',      icon: '▶' },
-  { label: 'Contact',         href: '/admin/contact',        icon: '✉' },
+  { label: 'Pending Changes', href: '/admin/pending',        icon: '◔' },
+  { label: 'Hero',            href: '/admin/hero',           icon: '▶', section: 'hero' },
+  { label: 'About',           href: '/admin/about',          icon: '◉', section: 'about' },
+  { label: 'Services',        href: '/admin/services',       icon: '◈', section: 'services' },
+  { label: 'Practice Areas',  href: '/admin/practice-areas', icon: '⚖', section: 'practiceAreas' },
+  { label: 'Publications',    href: '/admin/publications',   icon: '▤', section: 'publications' },
+  { label: 'Dialogues',       href: '/admin/dialogues',      icon: '▶', section: 'dialogues' },
+  { label: 'Contact',         href: '/admin/contact',        icon: '✉', section: 'contact' },
   { label: 'Messages',        href: '/admin/messages',       icon: '✎' },
   { label: 'Media Library',   href: '/admin/media',          icon: '▣' },
   { label: 'Users',           href: '/admin/users',          icon: '◈', requiresUserManagement: true },
@@ -32,8 +36,14 @@ export default function AdminSidebar({ isOpen, onClose }: Props) {
   const { adminUser } = useAuth();
   const [unreadMessages, setUnreadMessages] = useState(0);
 
+  const { data: contentStatus } = useContentStatus();
+
   const canManageUsers = adminUser ? USER_MANAGEMENT_ROLES.includes(adminUser.role) : false;
   const visibleNavItems = navItems.filter((item) => !item.requiresUserManagement || canManageUsers);
+
+  const pendingSections = new Set(
+    contentStatus?.sections.filter((s) => s.hasUnpublishedChanges).map((s) => s.section) ?? []
+  );
 
   useEffect(() => {
     if (!adminUser) return;
@@ -102,6 +112,25 @@ export default function AdminSidebar({ isOpen, onClose }: Props) {
             >
               <span className="text-xs w-4 text-center">{item.icon}</span>
               <span className="flex-1">{item.label}</span>
+
+              {/* Amber dot: this section has a saved draft that isn't live yet. */}
+              {item.section && pendingSections.has(item.section) && (
+                <span
+                  className="w-2 h-2 rounded-full bg-amber-400 shrink-0"
+                  title="Unpublished changes"
+                />
+              )}
+
+              {item.href === '/admin/pending' && pendingSections.size > 0 && (
+                <span
+                  className={`text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center ${
+                    active ? 'bg-wine-dark text-white' : 'bg-amber-400 text-wine-dark'
+                  }`}
+                >
+                  {pendingSections.size}
+                </span>
+              )}
+
               {item.href === '/admin/messages' && unreadMessages > 0 && (
                 <span
                   className={`text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center ${

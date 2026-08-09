@@ -15,7 +15,7 @@ const inputClass =
 export default function ServicesEditor() {
   const { data: content, isLoading } = useSectionContent<ServiceItem[]>('services', defaultServices);
   const [cards, setCards] = useState<ServiceItem[]>([...defaultServices].sort((a, b) => a.order - b.order));
-  const { save, saving, saved, error } = useContentSave('services');
+  const { save, ...workflow } = useContentSave('services');
   const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
@@ -149,7 +149,7 @@ export default function ServicesEditor() {
         </div>
       ))}
 
-      <SaveBar saving={saving} saved={saved} error={error} onSave={() => save(cards)} />
+      <SaveBar {...workflow} onSave={() => save(cards)} />
     </div>
   );
 }

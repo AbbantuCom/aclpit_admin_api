@@ -15,7 +15,7 @@ const inputClass =
 export default function AboutEditor() {
   const { data: content, isLoading } = useSectionContent<AboutContent>('about', defaultAbout);
   const [data, setData] = useState<AboutContent>(defaultAbout);
-  const { save, saving, saved, error } = useContentSave('about');
+  const { save, ...workflow } = useContentSave('about');
 
   useEffect(() => {
     if (content) setData(content);
@@ -174,7 +174,7 @@ export default function AboutEditor() {
 
       {entryEditor('stakeholders', 'Stakeholders')}
 
-      <SaveBar saving={saving} saved={saved} error={error} onSave={() => save(data)} />
+      <SaveBar {...workflow} onSave={() => save(data)} />
     </div>
   );
 }

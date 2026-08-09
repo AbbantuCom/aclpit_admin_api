@@ -14,7 +14,7 @@ const inputClass =
 export default function DialoguesEditor() {
   const { data: content, isLoading } = useSectionContent<DialogueItem[]>('dialogues', defaultDialogues);
   const [items, setItems] = useState<DialogueItem[]>([...defaultDialogues].sort((a, b) => a.order - b.order));
-  const { save, saving, saved, error } = useContentSave('dialogues');
+  const { save, ...workflow } = useContentSave('dialogues');
   const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
@@ -105,7 +105,7 @@ export default function DialoguesEditor() {
         </div>
       ))}
 
-      <SaveBar saving={saving} saved={saved} error={error} onSave={() => save(items)} />
+      <SaveBar {...workflow} onSave={() => save(items)} />
     </div>
   );
 }

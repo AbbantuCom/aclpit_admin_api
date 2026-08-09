@@ -26,10 +26,20 @@ export async function POST() {
   const db = await getDb();
   const now = new Date().toISOString();
 
+  // Seeded content starts out live: draft and published hold the same snapshot,
+  // so a freshly seeded section reports no pending changes.
   for (const s of sections) {
     const exists = await db.collection('content').findOne({ section: s.section });
     if (!exists) {
-      await db.collection('content').insertOne({ ...s, updatedAt: now, updatedBy: 'system' });
+      await db.collection('content').insertOne({
+        section: s.section,
+        draft: s.data,
+        published: s.data,
+        draftUpdatedAt: now,
+        draftUpdatedBy: 'system',
+        publishedAt: now,
+        publishedBy: 'system',
+      });
     }
   }
 

@@ -16,7 +16,7 @@ const inputClass =
 export default function PublicationsEditor() {
   const { data: content, isLoading } = useSectionContent<PublicationItem[]>('publications', defaultPublications);
   const [items, setItems] = useState<PublicationItem[]>([...defaultPublications].sort((a, b) => a.order - b.order));
-  const { save, saving, saved, error } = useContentSave('publications');
+  const { save, ...workflow } = useContentSave('publications');
   const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
@@ -118,7 +118,7 @@ export default function PublicationsEditor() {
         </div>
       ))}
 
-      <SaveBar saving={saving} saved={saved} error={error} onSave={() => save(items)} />
+      <SaveBar {...workflow} onSave={() => save(items)} />
     </div>
   );
 }

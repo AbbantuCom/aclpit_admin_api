@@ -23,6 +23,7 @@ const config: Config = {
         'wine-dark': 'var(--color-wine-dark)',
       },
       fontFamily: {
+        sans:    ['Arial', 'Helvetica', 'sans-serif'],
         display: ['var(--font-display)'],
         body:    ['var(--font-body)'],
       },

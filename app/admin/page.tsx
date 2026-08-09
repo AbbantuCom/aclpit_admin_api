@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import AdminHeader from '@/components/admin/AdminHeader';
 import { useAuth } from '@/lib/auth-context';
+import { useContentStatus } from '@/components/admin/useContentStatus';
 import { USER_MANAGEMENT_ROLES } from '@/types';
 
 const sections = [
@@ -18,9 +19,12 @@ const sections = [
 
 export default function AdminDashboard() {
   const { adminUser } = useAuth();
+  const { data: contentStatus } = useContentStatus();
 
   const canManageUsers = adminUser ? USER_MANAGEMENT_ROLES.includes(adminUser.role) : false;
   const visibleSections = sections.filter((s) => !s.requiresUserManagement || canManageUsers);
+
+  const pendingCount = contentStatus?.pendingCount ?? 0;
 
   return (
     <>
@@ -30,8 +34,27 @@ export default function AdminDashboard() {
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
             Welcome back, {adminUser?.displayName?.split(' ')[0]} 👋
           </h2>
-          <p className="text-gray-500 mt-1 text-sm">Choose a section below to edit the site content.</p>
+          <p className="text-gray-500 mt-1 text-sm">
+            Choose a section below to edit the site content. Edits are saved as drafts — the public
+            site only changes when you publish.
+          </p>
         </div>
+
+        {pendingCount > 0 && (
+          <Link
+            href="/admin/pending"
+            className="flex items-center gap-3 mb-6 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200 hover:border-amber-400 transition-colors"
+          >
+            <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+            <span className="text-sm text-amber-900 flex-1">
+              <strong>
+                {pendingCount} section{pendingCount === 1 ? '' : 's'}
+              </strong>{' '}
+              {pendingCount === 1 ? 'has' : 'have'} unpublished changes waiting to go live.
+            </span>
+            <span className="text-amber-800 text-xs font-semibold whitespace-nowrap">Review →</span>
+          </Link>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {visibleSections.map((s) => (
