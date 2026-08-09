@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import AdminHeader from '@/components/admin/AdminHeader';
 import { useAuth } from '@/lib/auth-context';
+import { USER_MANAGEMENT_ROLES } from '@/types';
 
 const sections = [
   { label: 'Hero',           href: '/admin/hero',           desc: 'Kicker, title, description, CTA buttons, hero image' },
@@ -12,11 +13,14 @@ const sections = [
   { label: 'Publications',   href: '/admin/publications',   desc: 'Research reports, policy briefs and commentary' },
   { label: 'Dialogues',      href: '/admin/dialogues',      desc: 'Legal Tech Dialogues video series entries' },
   { label: 'Contact',        href: '/admin/contact',        desc: 'Contact info, office hours, map, socials' },
-  { label: 'Users',          href: '/admin/users',          desc: 'Manage admins, invite, transfer role' },
+  { label: 'Users',          href: '/admin/users',          desc: 'Manage members, invite, transfer role', requiresUserManagement: true },
 ];
 
 export default function AdminDashboard() {
   const { adminUser } = useAuth();
+
+  const canManageUsers = adminUser ? USER_MANAGEMENT_ROLES.includes(adminUser.role) : false;
+  const visibleSections = sections.filter((s) => !s.requiresUserManagement || canManageUsers);
 
   return (
     <>
@@ -30,7 +34,7 @@ export default function AdminDashboard() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          {sections.map((s) => (
+          {visibleSections.map((s) => (
             <Link
               key={s.href}
               href={s.href}

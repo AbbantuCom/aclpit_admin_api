@@ -1,18 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth } from '@/lib/firebase-admin';
 import { getDb } from '@/lib/mongodb';
 import { corsHeaders, corsPreflight } from '@/lib/cors';
-
-async function verifyRequest(req: NextRequest) {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return null;
-  const token = authHeader.slice(7);
-  try {
-    return await adminAuth.verifyIdToken(token);
-  } catch {
-    return null;
-  }
-}
+import { requireRole, authError } from '@/lib/session';
+import { CONTENT_ROLES } from '@/types';
 
 // Tells the public client site to drop its cache for this section. Best-effort:
 // the admin save already succeeded and persisted, so a client that's unreachable
@@ -58,21 +48,16 @@ export async function PUT(
   { params }: { params: Promise<{ section: string }> }
 ) {
   const { section } = await params;
-  const decoded = await verifyRequest(req);
-  if (!decoded) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireRole(CONTENT_ROLES);
+  if ('failure' in auth) return authError(auth.failure);
 
   const db = await getDb();
-  const user = await db.collection('users').findOne({ uid: decoded.uid });
-  if (!user || user.status !== 'active') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
   const body = await req.json();
   const now = new Date().toISOString();
 
   await db.collection('content').updateOne(
     { section },
-    { $set: { section, data: body, updatedAt: now, updatedBy: decoded.uid } },
+    { $set: { section, data: body, updatedAt: now, updatedBy: auth.user.uid } },
     { upsert: true }
   );
 

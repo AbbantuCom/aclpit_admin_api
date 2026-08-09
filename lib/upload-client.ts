@@ -2,7 +2,6 @@ interface UploadOptions {
   file: File;
   folder: string;
   type: 'image' | 'video';
-  token: string | undefined;
   onProgress?: (percent: number) => void;
 }
 
@@ -20,8 +19,9 @@ function putWithProgress(url: string, file: File, contentType: string, onProgres
   });
 }
 
-export async function uploadToR2({ file, folder, type, token, onProgress }: UploadOptions): Promise<string> {
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+export async function uploadToR2({ file, folder, type, onProgress }: UploadOptions): Promise<string> {
+  // Auth rides on the httpOnly session cookie, sent automatically same-origin.
+  const headers = { 'Content-Type': 'application/json' };
 
   const presignRes = await fetch('/api/upload/presign', {
     method: 'POST',

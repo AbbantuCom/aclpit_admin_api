@@ -1,27 +1,61 @@
 // ─── User / Auth ─────────────────────────────────────────────────────────────
 
-export type UserRole = 'super_admin' | 'admin';
+export type UserRole = 'super_admin' | 'admin' | 'staff';
 
+/** Roles allowed to manage people (invite, remove, transfer). Staff cannot. */
+export const USER_MANAGEMENT_ROLES: readonly UserRole[] = ['super_admin', 'admin'];
+
+/** Roles allowed to edit site content, media and messages. */
+export const CONTENT_ROLES: readonly UserRole[] = ['super_admin', 'admin', 'staff'];
+
+/**
+ * An admin-panel account. `passwordHash` is server-only and must never be
+ * returned by an API route — use PublicAdminUser for anything client-facing.
+ */
 export interface AdminUser {
   uid: string;
   email: string;
+  username: string;
   displayName: string;
-  photoURL?: string;
+  passwordHash: string;
   role: UserRole;
   invitedBy?: string;
   createdAt: string;
   status: 'active' | 'pending';
+  emailVerified: boolean;
+  lastLoginAt?: string;
 }
+
+/** AdminUser minus the credential fields — safe to send to the browser. */
+export type PublicAdminUser = Omit<AdminUser, 'passwordHash'>;
 
 export interface Invitation {
   _id?: string;
   email: string;
   token: string;
+  role: UserRole;
   invitedBy: string;
   invitedByEmail: string;
   createdAt: string;
   expiresAt: string;
   status: 'pending' | 'accepted' | 'expired';
+}
+
+/** Single-use password reset token, stored hashed alongside its expiry. */
+export interface PasswordResetToken {
+  _id?: string;
+  uid: string;
+  email: string;
+  tokenHash: string;
+  createdAt: string;
+  expiresAt: string;
+  usedAt?: string;
+}
+
+/** Payload encoded into the signed session cookie. */
+export interface SessionPayload {
+  uid: string;
+  role: UserRole;
 }
 
 // ─── Site Content ─────────────────────────────────────────────────────────────

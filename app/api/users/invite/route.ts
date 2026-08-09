@@ -1,83 +1,105 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth } from '@/lib/firebase-admin';
-import { getDb } from '@/lib/mongodb';
 import { randomBytes } from 'crypto';
+import { getDb } from '@/lib/mongodb';
+import { requireRole, authError } from '@/lib/session';
+import { sendInvitationEmail, getAppUrl } from '@/lib/email';
+import { normalizeEmail, isValidEmail, asString } from '@/lib/validation';
+import { USER_MANAGEMENT_ROLES } from '@/types';
+import type { AdminUser, Invitation, UserRole } from '@/types';
+
+/** Roles that can be handed out by invitation. super_admin is deliberately
+ *  excluded — there is only ever one, and it moves via /api/users/transfer. */
+const INVITABLE_ROLES: readonly UserRole[] = ['admin', 'staff'];
 
 export async function POST(req: NextRequest) {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireRole(USER_MANAGEMENT_ROLES);
+  if ('failure' in auth) return authError(auth.failure);
+
+  const body = await req.json().catch(() => null);
+  if (!body) return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+
+  const rawEmail = asString(body.email);
+  const role = (asString(body.role) ?? 'staff') as UserRole;
+
+  if (!rawEmail) return NextResponse.json({ error: 'Email is required.' }, { status: 400 });
+
+  const email = normalizeEmail(rawEmail);
+  if (!isValidEmail(email)) {
+    return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
   }
 
-  try {
-    const decoded = await adminAuth.verifyIdToken(authHeader.slice(7));
-    const db = await getDb();
-    const requestUser = await db.collection('users').findOne({ uid: decoded.uid });
-
-    if (!requestUser || !['super_admin', 'admin'].includes(requestUser.role as string)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const { email } = await req.json();
-    if (!email || !email.includes('@')) {
-      return NextResponse.json({ error: 'Invalid email' }, { status: 400 });
-    }
-
-    // Check if user already exists
-    const existing = await db.collection('users').findOne({ email });
-    if (existing) {
-      return NextResponse.json({ error: 'User with this email already exists' }, { status: 409 });
-    }
-
-    // Check for existing pending invite
-    const existingInvite = await db.collection('invitations').findOne({ email, status: 'pending' });
-    if (existingInvite) {
-      return NextResponse.json({ error: 'An invitation for this email is already pending' }, { status: 409 });
-    }
-
-    const token = randomBytes(32).toString('hex');
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
-
-    await db.collection('invitations').insertOne({
-      email,
-      token,
-      invitedBy: decoded.uid,
-      invitedByEmail: requestUser.email,
-      createdAt: now.toISOString(),
-      expiresAt: expiresAt.toISOString(),
-      status: 'pending',
-    });
-
-    const baseUrl = req.headers.get('origin') || '';
-    const inviteLink = `${baseUrl}/auth?invite=${token}`;
-
-    return NextResponse.json({ ok: true, inviteLink, token });
-  } catch (err) {
-    console.error('Invite error:', err);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  if (!INVITABLE_ROLES.includes(role)) {
+    return NextResponse.json(
+      { error: 'Invitations can only be sent for the Admin or Staff role.' },
+      { status: 400 }
+    );
   }
+
+  const db = await getDb();
+
+  const existing = await db.collection<AdminUser>('users').findOne({ email });
+  if (existing) {
+    return NextResponse.json({ error: 'An account with this email already exists.' }, { status: 409 });
+  }
+
+  const existingInvite = await db
+    .collection<Invitation>('invitations')
+    .findOne({ email, status: 'pending' });
+  if (existingInvite) {
+    return NextResponse.json(
+      { error: 'An invitation for this email is already pending.' },
+      { status: 409 }
+    );
+  }
+
+  const token = randomBytes(32).toString('hex');
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+  await db.collection<Invitation>('invitations').insertOne({
+    email,
+    token,
+    role,
+    invitedBy: auth.user.uid,
+    invitedByEmail: auth.user.email,
+    createdAt: now.toISOString(),
+    expiresAt: expiresAt.toISOString(),
+    status: 'pending',
+  });
+
+  const emailResult = await sendInvitationEmail({
+    to: email,
+    inviterName: auth.user.displayName || auth.user.email,
+    role,
+    token,
+  });
+
+  // The link is returned either way so an admin can pass it on manually if
+  // mail delivery is misconfigured — the invite itself is already valid.
+  return NextResponse.json({
+    ok: true,
+    emailSent: emailResult.ok,
+    emailError: emailResult.error,
+    inviteLink: `${getAppUrl()}/auth/accept-invite?token=${token}`,
+  });
 }
 
 export async function DELETE(req: NextRequest) {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireRole(['super_admin']);
+  if ('failure' in auth) {
+    return authError(
+      auth.failure.status === 403
+        ? { error: 'Only the super admin can revoke invitations.', status: 403 }
+        : auth.failure
+    );
   }
 
-  try {
-    const decoded = await adminAuth.verifyIdToken(authHeader.slice(7));
-    const db = await getDb();
-    const requestUser = await db.collection('users').findOne({ uid: decoded.uid });
+  const body = await req.json().catch(() => null);
+  const token = body ? asString(body.token) : null;
+  if (!token) return NextResponse.json({ error: 'token is required' }, { status: 400 });
 
-    if (!requestUser || requestUser.role !== 'super_admin') {
-      return NextResponse.json({ error: 'Only super admins can revoke invitations' }, { status: 403 });
-    }
+  const db = await getDb();
+  await db.collection<Invitation>('invitations').deleteOne({ token });
 
-    const { token } = await req.json();
-    await db.collection('invitations').deleteOne({ token });
-    return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
-  }
+  return NextResponse.json({ ok: true });
 }

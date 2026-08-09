@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getFirebaseAuth } from '@/lib/firebase';
 
 interface MediaFile {
   key: string;
@@ -11,9 +10,9 @@ interface MediaFile {
   inUse: boolean;
 }
 
+// Auth rides on the httpOnly session cookie — no Authorization header needed.
 async function authHeader() {
-  const token = await getFirebaseAuth().currentUser?.getIdToken();
-  return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+  return { 'Content-Type': 'application/json' };
 }
 
 function formatBytes(bytes: number): string {

@@ -4,8 +4,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { getFirebaseAuth } from '@/lib/firebase';
+import { USER_MANAGEMENT_ROLES } from '@/types';
 
+// `requiresUserManagement` items are hidden from staff, who are redirected away
+// from /admin/users by proxy.ts anyway — this just avoids showing a dead link.
 const navItems = [
   { label: 'Dashboard',       href: '/admin',                icon: '⊞' },
   { label: 'Hero',            href: '/admin/hero',           icon: '▶' },
@@ -17,7 +19,7 @@ const navItems = [
   { label: 'Contact',         href: '/admin/contact',        icon: '✉' },
   { label: 'Messages',        href: '/admin/messages',       icon: '✎' },
   { label: 'Media Library',   href: '/admin/media',          icon: '▣' },
-  { label: 'Users',           href: '/admin/users',          icon: '◈' },
+  { label: 'Users',           href: '/admin/users',          icon: '◈', requiresUserManagement: true },
 ];
 
 interface Props {
@@ -30,14 +32,14 @@ export default function AdminSidebar({ isOpen, onClose }: Props) {
   const { adminUser } = useAuth();
   const [unreadMessages, setUnreadMessages] = useState(0);
 
+  const canManageUsers = adminUser ? USER_MANAGEMENT_ROLES.includes(adminUser.role) : false;
+  const visibleNavItems = navItems.filter((item) => !item.requiresUserManagement || canManageUsers);
+
   useEffect(() => {
     if (!adminUser) return;
 
     async function checkUnread() {
-      const token = await getFirebaseAuth().currentUser?.getIdToken();
-      const res = await fetch('/api/contact/count', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch('/api/contact/count');
       if (res.ok) {
         const data = await res.json();
         setUnreadMessages(data.unread);
@@ -83,7 +85,7 @@ export default function AdminSidebar({ isOpen, onClose }: Props) {
 
       {/* Nav links */}
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const active = item.href === '/admin'
             ? pathname === '/admin'
             : pathname.startsWith(item.href);
@@ -131,8 +133,10 @@ export default function AdminSidebar({ isOpen, onClose }: Props) {
 
   return (
     <>
-      {/* ── Desktop: static sidebar ── */}
-      <div className="hidden md:flex md:w-64 md:min-h-screen md:shrink-0">
+      {/* ── Desktop: sidebar pinned to the viewport ──
+          sticky + h-screen keeps it in place while the main column scrolls,
+          without taking it out of the flex flow (which `fixed` would). */}
+      <div className="hidden md:flex md:w-64 md:shrink-0 md:sticky md:top-0 md:h-screen md:self-start">
         {sidebarContent}
       </div>
 

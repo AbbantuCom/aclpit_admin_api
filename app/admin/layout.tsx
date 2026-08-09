@@ -14,15 +14,15 @@ export const AdminLayoutContext = createContext<LayoutContextValue>({ openSideba
 export const useAdminLayout = () => useContext(AdminLayoutContext);
 
 function AdminGuard({ children }: { children: React.ReactNode }) {
-  const { firebaseUser, adminUser, loading } = useAuth();
+  const { adminUser, loading } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    if (!loading && (!firebaseUser || !adminUser)) {
+    if (!loading && !adminUser) {
       router.replace('/auth');
     }
-  }, [loading, firebaseUser, adminUser, router]);
+  }, [loading, adminUser, router]);
 
   if (loading) {
     return (
@@ -32,12 +32,14 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!firebaseUser || !adminUser) return null;
+  if (!adminUser) return null;
 
   return (
     <div className="flex min-h-screen bg-gray-50">
       <AdminSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <main className="flex-1 min-w-0 overflow-auto">
+      {/* No overflow-* here: an overflow container would trap the page scroll
+          and stop the sticky sidebar from pinning to the viewport. */}
+      <main className="flex-1 min-w-0">
         <AdminLayoutContext.Provider value={{ openSidebar: () => setSidebarOpen(true) }}>
           {children}
         </AdminLayoutContext.Provider>

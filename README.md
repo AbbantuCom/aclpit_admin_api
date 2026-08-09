@@ -29,9 +29,10 @@ Admin panel and content API backend for the **African Centre for Law and Public 
 | Language | TypeScript (strict) |
 | Styling | Tailwind CSS |
 | Database | MongoDB Atlas |
-| Auth | Firebase Authentication (Google Sign-In) |
+| Auth | Built-in — email/username + password (`bcryptjs`), no third party |
+| Session | Signed JWT in an httpOnly cookie (`jose`) |
+| Transactional email | Resend (invitations, password resets) |
 | File Storage | Cloudflare R2 |
-| Session | Signed JWT cookie (`jose`) |
 | Client-side data | TanStack React Query |
 
 ---
@@ -42,7 +43,8 @@ Admin panel and content API backend for the **African Centre for Law and Public 
 aclpit_admin_api/
 ├── app/
 │   ├── page.tsx               ← Redirects to /auth (no public site here)
-│   ├── auth/page.tsx           ← Google sign-in / invitation acceptance
+│   ├── auth/                   ← Sign in, first-time setup, password reset,
+│   │                              invitation acceptance
 │   ├── admin/                  ← Protected CMS panel
 │   │   ├── page.tsx            ← Dashboard
 │   │   ├── hero/
@@ -56,21 +58,32 @@ aclpit_admin_api/
 │   │   ├── messages/           ← Contact form submissions inbox
 │   │   └── users/               ← Invite admins, manage roles
 │   └── api/                     ← REST endpoints
-│       ├── auth/verify/         ← Verify Firebase token, issue session cookie
+│       ├── auth/register/       ← One-time super admin bootstrap
+│       ├── auth/login/          ← Email-or-username + password → session cookie
+│       ├── auth/logout/         ← Clear the session cookie
+│       ├── auth/me/             ← Current signed-in user
+│       ├── auth/status/         ← Whether first-time setup is still needed
+│       ├── auth/forgot-password/ ← Request a reset link
+│       ├── auth/reset-password/  ← Validate token (GET) / set password (POST)
+│       ├── auth/accept-invite/   ← Validate invite (GET) / activate account (POST)
+│       ├── auth/dev-reset/       ← Dev-only: wipe users so setup can rerun
 │       ├── content/[section]    ← GET (public, CORS-enabled) / PUT (admin) site content
 │       ├── content/seed/        ← Seed default content
 │       ├── contact/             ← POST (public, CORS-enabled) contact form submissions
 │       ├── documents/presign/   ← Presigned PDF upload (publications)
 │       ├── upload/               ← Presigned image/video upload (media library)
 │       ├── media/                ← Media library listing
-│       ├── users/                ← List / invite / remove admins, transfer role
-│       └── auth/reset/           ← Emergency admin roster reset
+│       └── users/                ← List / invite / remove members, transfer role
 ├── components/
-│   └── admin/                   ← CMS UI components and section editors
+│   ├── admin/                   ← CMS UI components and section editors
+│   └── auth/AuthShell.tsx       ← Shared branded shell for the /auth screens
 ├── lib/
 │   ├── mongodb.ts               ← MongoDB connection (lazy)
-│   ├── firebase.ts              ← Firebase client SDK (lazy, browser-only)
-│   ├── firebase-admin.ts        ← Firebase Admin SDK (server-only)
+│   ├── session.ts               ← Session cookie + requireRole() route guard
+│   ├── password.ts              ← bcrypt hashing + password policy
+│   ├── users.ts                 ← Unique-index setup for users
+│   ├── validation.ts            ← Email/username normalisation and checks
+│   ├── email.ts                 ← Resend wrapper + templates (dev console fallback)
 │   ├── auth-context.tsx         ← React auth context
 │   ├── r2.ts                    ← Cloudflare R2 client
 │   ├── cors.ts                  ← CORS helper for public API routes
@@ -104,9 +117,7 @@ The content API stores one document per section in the `content` MongoDB collect
 - **Node.js** ≥ 18 (v24 recommended)
 - **npm** ≥ 9
 - A **MongoDB Atlas** cluster (free tier works fine)
-- A **Firebase** project with:
-  - Google Sign-In enabled (Authentication → Sign-in method → Google)
-  - A service account key downloaded (Project Settings → Service Accounts → Generate new private key)
+- A **Resend** account and verified sending domain — optional in local development, where unsent emails are logged to the console instead
 - A **Cloudflare R2** bucket (see `CLOUDFLARE_R2_SETUP.md`)
 - The **public client repo** deployed somewhere, if you want CORS and cache revalidation to work end to end
 
@@ -126,30 +137,15 @@ cp .env.local.example .env.local
 MONGODB_URI=mongodb+srv://<user>:<password>@cluster0.xxxxx.mongodb.net/<dbname>?retryWrites=true&w=majority
 ```
 
-### Firebase (Client — public, used in the browser)
+### App URL
 
-Get these from **Firebase Console → Project Settings → General → Your apps → Web app config**:
-
-```env
-NEXT_PUBLIC_FIREBASE_API_KEY=AIza...
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
-NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123
-```
-
-### Firebase Admin (Server — private, never exposed to the browser)
-
-Get these from **Firebase Console → Project Settings → Service Accounts → Generate new private key** (downloads a JSON file):
+Used to build the links inside invitation and password-reset emails, so it must
+be reachable by the recipient. Locally, set it to the port this app actually
+runs on (often `3001` if the public client site already uses `3000`).
 
 ```env
-FIREBASE_PROJECT_ID=your-project
-FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIE...\n-----END PRIVATE KEY-----\n"
+APP_URL=http://localhost:3001
 ```
-
-> **Important:** Keep the quotes around the private key and preserve the literal `\n` characters exactly as they appear in the JSON file.
 
 ### Session & Reset Secrets
 
@@ -159,6 +155,22 @@ Any long random strings (at least 32 characters):
 SESSION_SECRET=some-very-long-random-string-change-this-now
 RESET_SECRET=another-long-random-string-change-this-too
 ```
+
+- **`SESSION_SECRET`** signs the httpOnly session cookie. **Required** — the app throws if it is missing. Changing it invalidates every existing session.
+- **`RESET_SECRET`** guards `/api/auth/dev-reset`, which wipes the users, invitations and password-reset collections so first-time setup can be run again. The route refuses to run when `NODE_ENV=production`.
+
+### Email (Resend)
+
+```env
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+EMAIL_FROM=ACLPIT Admin <no-reply@aclpit.org>
+```
+
+`EMAIL_FROM` must be on a domain verified in Resend.
+
+> **Local development:** if `RESEND_API_KEY` is unset, nothing breaks — the email
+> is printed to the server console instead, **including the invite / reset link**,
+> so both flows stay fully testable without configuring a mail provider.
 
 ### Cloudflare R2 (media storage)
 
@@ -210,7 +222,13 @@ This only inserts sections that **don't already exist** — it is safe to run mo
 
 ### 4. Create the Super Admin account
 
-Go to `http://localhost:3000/auth`. Because the database has no users yet, the page shows a first-time setup banner — sign in with Google to create the first Super Admin account automatically. This only works once; after that, new admins must be invited from **Admin → Users**.
+Go to `/auth`. Because the database has no users yet, the page shows a first-time
+setup form — choose an email, username and password to create the **one and only**
+Super Admin account.
+
+This route closes permanently once any account exists: `/api/auth/register` returns
+403 from then on, so the Super Admin cannot be re-registered and everyone else must
+be invited from **Admin → Users**.
 
 ---
 
@@ -233,10 +251,13 @@ The app runs on **http://localhost:3000** by default.
 
 ## Admin Panel Guide
 
-1. Go to `/auth` and sign in with an authorised Google account
+1. Go to `/auth` and sign in with your **email address or username** and password
 2. You are redirected to `/admin`
 3. Pick a section from the sidebar or dashboard
 4. Edit the fields directly in the form and click **Save Changes**
+
+Forgot your password? Use the link on the sign-in page — you will receive a reset
+link that is valid for one hour and can only be used once.
 
 Saving a section writes to MongoDB immediately and (if `CLIENT_URL` is configured) tells the public client site to revalidate its cache for that section.
 
@@ -251,7 +272,10 @@ The separate public client repo reads content from this API — no authenticatio
 - **`GET /api/content/:section`** → `{ section, data, updatedAt, updatedBy }` (or `{ data: null }` if unseeded)
 - **`POST /api/contact`** → accepts `{ name, email, subject, message }`, stores the submission for the **Messages** inbox
 
-Editing content (`PUT /api/content/:section`) requires a valid Firebase ID token for an active admin — that's what the admin panel's editors use.
+Every other route is authenticated by the **httpOnly session cookie**, which the
+browser sends automatically on same-origin requests. There is no bearer token to
+manage: `PUT /api/content/:section` and all the admin routes simply require a
+valid session belonging to an active account with a sufficient role.
 
 ---
 
@@ -259,12 +283,38 @@ Editing content (`PUT /api/content/:section`) requires a valid Firebase ID token
 
 Navigate to **Admin → Users** (`/admin/users`).
 
-| Role | Permissions |
-|---|---|
-| **Super Admin** | Edit all content, invite admins, remove admins, transfer super admin role |
-| **Admin** | Edit all content, invite admins |
+### Roles
 
-Invite a new admin by entering their Google account email — they get a link (expires in 7 days) that grants access on sign-in. Only the super admin can revoke pending invitations, remove other admins, or transfer the super admin role.
+| Role | Content, media & messages | Invite members | Remove members / transfer role |
+|---|:---:|:---:|:---:|
+| **Super Admin** | ✅ | ✅ | ✅ |
+| **Admin** | ✅ | ✅ | — |
+| **Staff** | ✅ | — | — |
+
+There is **exactly one Super Admin** at all times. The role is created once during
+first-time setup and can only move via **Transfer Super Admin Role**, which demotes
+the current holder to Admin in the same operation. It cannot be granted by
+invitation, and the Super Admin account cannot be deleted.
+
+Staff never see the Users screen — it is hidden from the sidebar and dashboard,
+`proxy.ts` redirects them away from `/admin/users`, and the user-management API
+routes reject them with 403.
+
+### Inviting
+
+Enter an email address and pick **Staff** or **Admin**. Resend delivers an
+invitation link (valid 7 days) where the invitee chooses their own username and
+password; accepting signs them straight in. If the email fails to send, the
+invitation is still valid and the UI shows the link so it can be shared manually.
+
+Only the Super Admin can revoke pending invitations, remove members, or transfer
+the role.
+
+### Sessions
+
+Sessions last 7 days, but the signed-in user is re-read from the database on
+**every request** — so removing someone, or changing their role, takes effect
+immediately rather than when their cookie expires.
 
 ---
 
@@ -308,8 +358,11 @@ Set all environment variables on the hosting platform before starting.
 
 ## Security Notes
 
-- `FIREBASE_PRIVATE_KEY`, `SESSION_SECRET`, `RESET_SECRET`, and `REVALIDATE_SECRET` must **never** be committed to git — `.env.local` is gitignored by default.
-- All admin API routes verify the Firebase ID token on every request — the session cookie alone is not enough to mutate data.
-- Session cookies are `httpOnly`, `sameSite: lax`, and `secure` in production.
-- `GET /api/content/[section]` and `POST /api/contact` allow cross-origin requests only from origins listed in `CLIENT_ORIGIN`; all other API routes are same-origin / token-authenticated.
-- Self-registration is only possible when **zero** admin accounts exist. Once the Super Admin is created, all new admins must be invited.
+- `SESSION_SECRET`, `RESET_SECRET`, `RESEND_API_KEY` and `REVALIDATE_SECRET` must **never** be committed to git — `.env.local` is gitignored by default.
+- **Passwords** are hashed with bcrypt (cost 12) and never leave the server: every API response is passed through `toPublicUser()`, which strips `passwordHash`.
+- **Sessions** are a signed JWT in an `httpOnly`, `sameSite: lax` cookie (`secure` in production). Because it is `httpOnly`, JavaScript — including injected scripts — cannot read it.
+- The session is **re-validated against the database on every request**, so a removed or demoted account loses access immediately instead of when its cookie expires.
+- **Password reset tokens** are stored only as SHA-256 hashes, expire after 1 hour, and are single-use — the raw token exists only in the email, so database access alone cannot reset anyone's password.
+- **Login and password reset do not reveal whether an account exists**: wrong password, unknown username and unknown email all return the same message.
+- `GET /api/content/[section]` and `POST /api/contact` allow cross-origin requests only from origins listed in `CLIENT_ORIGIN`; every other API route is same-origin and session-authenticated.
+- Self-registration is only possible when **zero** accounts exist. Once the Super Admin is created, everyone else must be invited.

@@ -1,28 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth } from '@/lib/firebase-admin';
-import { getDb } from '@/lib/mongodb';
 import { getPresignedUploadUrl, publicUrlFor } from '@/lib/r2';
-
-async function getRequestUser(req: NextRequest) {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return null;
-  try {
-    const decoded = await adminAuth.verifyIdToken(authHeader.slice(7));
-    const db = await getDb();
-    return await db.collection('users').findOne({ uid: decoded.uid });
-  } catch {
-    return null;
-  }
-}
+import { requireRole, authError } from '@/lib/session';
+import { CONTENT_ROLES } from '@/types';
 
 // Presigns a direct PUT to the document's final public key. Unlike the image/video
 // upload flow, PDFs need no server-side processing step, so there's no raw/ staging
 // key and no separate /process call.
 export async function POST(req: NextRequest) {
-  const requestUser = await getRequestUser(req);
-  if (!requestUser || !['super_admin', 'admin'].includes(requestUser.role as string)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  const auth = await requireRole(CONTENT_ROLES);
+  if ('failure' in auth) return authError(auth.failure);
 
   const { filename, contentType, folder } = await req.json();
 

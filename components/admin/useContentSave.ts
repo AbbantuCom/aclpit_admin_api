@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { getFirebaseAuth } from '@/lib/firebase';
 import { contentQueryKey } from './useSectionContent';
 
 export function useContentSave(section: string) {
@@ -11,13 +10,9 @@ export function useContentSave(section: string) {
 
   const mutation = useMutation({
     mutationFn: async (data: unknown) => {
-      const token = await getFirebaseAuth().currentUser?.getIdToken();
       const res = await fetch(`/api/content/${section}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error(await res.text());

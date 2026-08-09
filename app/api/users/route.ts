@@ -1,31 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth } from '@/lib/firebase-admin';
+import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
+import { requireRole, authError, toPublicUser } from '@/lib/session';
+import { USER_MANAGEMENT_ROLES } from '@/types';
+import type { AdminUser, Invitation } from '@/types';
 
-async function getRequestUser(req: NextRequest) {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return null;
-  try {
-    const decoded = await adminAuth.verifyIdToken(authHeader.slice(7));
-    const db = await getDb();
-    return await db.collection('users').findOne({ uid: decoded.uid });
-  } catch {
-    return null;
-  }
-}
-
-export async function GET(req: NextRequest) {
-  const requestUser = await getRequestUser(req);
-  if (!requestUser || !['super_admin', 'admin'].includes(requestUser.role as string)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+export async function GET() {
+  const auth = await requireRole(USER_MANAGEMENT_ROLES);
+  if ('failure' in auth) return authError(auth.failure);
 
   const db = await getDb();
-  const users = await db.collection('users').find({}).toArray();
-  const invitations = await db.collection('invitations').find({ status: 'pending' }).toArray();
+  const users = await db.collection<AdminUser>('users').find({}).toArray();
+  const invitations = await db
+    .collection<Invitation>('invitations')
+    .find({ status: 'pending' })
+    .toArray();
 
   return NextResponse.json({
-    users: users.map(({ _id, ...u }) => u),
-    invitations: invitations.map(({ _id, ...i }) => ({ ...i, _id: _id.toString() })),
+    // toPublicUser strips passwordHash — never let credentials reach the client.
+    users: users.map(toPublicUser),
+    invitations: invitations.map(({ _id, ...i }) => ({ ...i, _id: String(_id) })),
   });
 }

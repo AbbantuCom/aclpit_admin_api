@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { getFirebaseAuth } from '@/lib/firebase';
 import { uploadToR2 } from '@/lib/upload-client';
+import MediaPicker from './MediaPicker';
 
 interface Props {
   value: string;
@@ -15,6 +15,7 @@ export default function ImageUpload({ value, onChange, folder = 'images', label 
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
+  const [picking, setPicking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleFile(file: File) {
@@ -32,8 +33,7 @@ export default function ImageUpload({ value, onChange, folder = 'images', label 
     setProgress(0);
 
     try {
-      const token = await getFirebaseAuth().currentUser?.getIdToken();
-      const url = await uploadToR2({ file, folder, type: 'image', token, onProgress: setProgress });
+      const url = await uploadToR2({ file, folder, type: 'image', onProgress: setProgress });
       onChange(url);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
@@ -87,6 +87,18 @@ export default function ImageUpload({ value, onChange, folder = 'images', label 
         )}
       </div>
 
+      <button
+        type="button"
+        onClick={() => setPicking(true)}
+        disabled={uploading}
+        className="mt-2 w-full flex items-center justify-center gap-2 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 hover:border-wine hover:text-wine transition-colors disabled:opacity-60"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M18 10.5h.008v.008H18V10.5zM2.25 19.5V4.5A2.25 2.25 0 014.5 2.25h15A2.25 2.25 0 0121.75 4.5v15a2.25 2.25 0 01-2.25 2.25h-15A2.25 2.25 0 012.25 19.5z" />
+        </svg>
+        Choose from Media Library
+      </button>
+
       <div className="mt-2">
         <input
           type="url"
@@ -100,6 +112,14 @@ export default function ImageUpload({ value, onChange, folder = 'images', label 
       {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
 
       <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+
+      {picking && (
+        <MediaPicker
+          kind="image"
+          onSelect={(url) => { onChange(url); setError(''); }}
+          onClose={() => setPicking(false)}
+        />
+      )}
     </div>
   );
 }

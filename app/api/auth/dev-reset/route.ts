@@ -20,11 +20,13 @@ export async function POST(req: NextRequest) {
   const db = await getDb();
   const usersDeleted = await db.collection('users').deleteMany({});
   const invitesDeleted = await db.collection('invitations').deleteMany({});
+  const tokensDeleted = await db.collection('passwordResetTokens').deleteMany({});
 
   return NextResponse.json({
     ok: true,
     usersDeleted: usersDeleted.deletedCount,
     invitesDeleted: invitesDeleted.deletedCount,
+    resetTokensDeleted: tokensDeleted.deletedCount,
     message: 'Collections cleared. Visit /auth to register as Super Admin.',
   });
 }

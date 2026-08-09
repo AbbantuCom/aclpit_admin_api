@@ -142,3 +142,6 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Local backup of the pre-migration Firebase user records (contains emails)
+legacy-firebase-users.backup.json

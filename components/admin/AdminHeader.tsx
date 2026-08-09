@@ -2,17 +2,15 @@
 
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { useAdminLayout } from '@/app/admin/layout';
 
 export default function AdminHeader({ title }: { title: string }) {
-  const { adminUser, firebaseUser, signOut } = useAuth();
+  const { adminUser, signOut } = useAuth();
   const router = useRouter();
   const { openSidebar } = useAdminLayout();
 
   async function handleSignOut() {
     await signOut();
-    await fetch('/api/auth/verify', { method: 'DELETE' });
     router.push('/auth');
   }
 
@@ -33,15 +31,9 @@ export default function AdminHeader({ title }: { title: string }) {
       </div>
 
       <div className="flex items-center gap-3 shrink-0">
-        {firebaseUser?.photoURL && (
-          <Image
-            src={firebaseUser.photoURL}
-            alt="Avatar"
-            width={32}
-            height={32}
-            className="rounded-full shrink-0"
-          />
-        )}
+        <div className="w-8 h-8 rounded-full bg-wine flex items-center justify-center text-white text-xs font-bold shrink-0">
+          {adminUser?.displayName?.[0]?.toUpperCase() || 'A'}
+        </div>
         <div className="text-right hidden sm:block">
           <p className="text-sm font-medium text-gray-800">{adminUser?.displayName}</p>
           <p className="text-xs text-gray-500">{adminUser?.email}</p>

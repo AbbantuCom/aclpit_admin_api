@@ -1,59 +1,93 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getFirebaseAuth } from '@/lib/firebase';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import type { AdminUser, Invitation } from '@/types';
-import Image from 'next/image';
+import type { PublicAdminUser, Invitation, UserRole } from '@/types';
 
-async function authHeader() {
-  const token = await getFirebaseAuth().currentUser?.getIdToken();
-  return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-}
+const inputClass =
+  'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-wine focus:ring-2 focus:ring-wine/15';
+
+const ROLE_LABELS: Record<UserRole, string> = {
+  super_admin: 'Super Admin',
+  admin: 'Admin',
+  staff: 'Staff',
+};
+
+const ROLE_BADGE: Record<UserRole, string> = {
+  super_admin: 'bg-wine text-white',
+  admin: 'bg-wine/10 text-wine',
+  staff: 'bg-gray-100 text-gray-600',
+};
+
+const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 export default function UsersManager() {
-  const { adminUser } = useAuth();
-  const [users, setUsers] = useState<AdminUser[]>([]);
+  const { adminUser, refresh } = useAuth();
+  const [users, setUsers] = useState<PublicAdminUser[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'admin' | 'staff'>('staff');
   const [inviteLink, setInviteLink] = useState('');
+  const [inviteWarning, setInviteWarning] = useState('');
   const [inviting, setInviting] = useState(false);
-  const [error, setError] = useState('');
+
   const [transferTarget, setTransferTarget] = useState('');
   const [transferring, setTransferring] = useState(false);
+
+  const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
   const isSuperAdmin = adminUser?.role === 'super_admin';
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
-    const headers = await authHeader();
-    const res = await fetch('/api/users', { headers });
-    if (res.ok) {
-      const data = await res.json();
-      setUsers(data.users);
-      setInvitations(data.invitations);
+    try {
+      const res = await fetch('/api/users');
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(data.users);
+        setInvitations(data.invitations);
+      } else {
+        setError('Could not load users.');
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function sendInvite(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    setMessage('');
     setInviteLink('');
+    setInviteWarning('');
     setInviting(true);
     try {
-      const headers = await authHeader();
       const res = await fetch('/api/users/invite', {
         method: 'POST',
-        headers,
-        body: JSON.stringify({ email: inviteEmail }),
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+
+      if (data.emailSent) {
+        setMessage(`Invitation sent to ${inviteEmail}.`);
+      } else {
+        // Mail failed but the invite is valid — surface the link so the admin
+        // can still pass it on manually.
+        setInviteWarning(
+          data.emailError
+            ? `The invitation was created, but the email could not be sent (${data.emailError}). Share the link below instead.`
+            : 'The invitation was created, but the email could not be sent. Share the link below instead.'
+        );
+      }
       setInviteLink(data.inviteLink);
       setInviteEmail('');
       load();
@@ -65,34 +99,44 @@ export default function UsersManager() {
   }
 
   async function revokeInvite(token: string) {
-    const headers = await authHeader();
-    await fetch('/api/users/invite', { method: 'DELETE', headers, body: JSON.stringify({ token }) });
+    if (!confirm('Revoke this invitation?')) return;
+    setError('');
+    const res = await fetch('/api/users/invite', {
+      method: 'DELETE',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ token }),
+    });
+    if (!res.ok) setError((await res.json()).error || 'Could not revoke invitation.');
     load();
   }
 
-  async function removeUser(uid: string) {
-    if (!confirm('Remove this admin?')) return;
-    const headers = await authHeader();
-    await fetch(`/api/users/${uid}`, { method: 'DELETE', headers });
+  async function removeUser(uid: string, label: string) {
+    if (!confirm(`Remove ${label}? They will lose access immediately.`)) return;
+    setError('');
+    const res = await fetch(`/api/users/${uid}`, { method: 'DELETE' });
+    if (!res.ok) setError((await res.json()).error || 'Could not remove user.');
     load();
   }
 
   async function transferRole() {
     if (!transferTarget) return;
-    if (!confirm('Transfer super admin role? You will become a regular admin.')) return;
+    if (!confirm('Transfer the super admin role? You will become a regular admin.')) return;
     setTransferring(true);
     setError('');
+    setMessage('');
     try {
-      const headers = await authHeader();
       const res = await fetch('/api/users/transfer', {
         method: 'POST',
-        headers,
+        headers: JSON_HEADERS,
         body: JSON.stringify({ targetUid: transferTarget }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setMessage(data.message);
       setTransferTarget('');
+      // The caller was demoted server-side — re-read the session so the UI
+      // stops offering super-admin-only controls.
+      await refresh();
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Transfer failed');
@@ -105,60 +149,106 @@ export default function UsersManager() {
     return <div className="text-center py-20 text-gray-500">Loading users…</div>;
   }
 
+  const transferCandidates = users.filter((u) => u.role !== 'super_admin');
+
   return (
     <div className="space-y-8">
-      {/* Invite Section */}
+      {(error || message) && (
+        <div>
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">{error}</div>
+          )}
+          {message && (
+            <div className="bg-linen border border-wine/20 rounded-xl px-4 py-3 text-sm text-gray-700">✓ {message}</div>
+          )}
+        </div>
+      )}
+
+      {/* Invite */}
       <div className="bg-white rounded-2xl p-6 shadow-sm">
-        <h2 className="font-semibold text-gray-800 mb-4">Invite a New Admin</h2>
-        <form onSubmit={sendInvite} className="flex gap-3">
+        <h2 className="font-semibold text-gray-800 mb-1">Invite a Team Member</h2>
+        <p className="text-xs text-gray-500 mb-4">
+          They receive an email with a link to choose their own username and password. Invitations
+          expire after 7 days.
+        </p>
+        <form onSubmit={sendInvite} className="flex flex-col sm:flex-row gap-3">
           <input
             type="email"
-            placeholder="admin@example.com"
+            placeholder="person@example.com"
             value={inviteEmail}
             onChange={(e) => setInviteEmail(e.target.value)}
             required
-            className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-pine focus:ring-2 focus:ring-pine/15"
+            className={`${inputClass} flex-1`}
           />
+          <select
+            value={inviteRole}
+            onChange={(e) => setInviteRole(e.target.value as 'admin' | 'staff')}
+            className={`${inputClass} sm:w-40`}
+          >
+            <option value="staff">Staff</option>
+            <option value="admin">Admin</option>
+          </select>
           <button
             type="submit"
             disabled={inviting}
-            className="bg-forest text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-pine transition-colors disabled:opacity-60"
+            className="bg-wine text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-wine-dark transition-colors disabled:opacity-60 whitespace-nowrap"
           >
             {inviting ? 'Inviting…' : 'Send Invite'}
           </button>
         </form>
-        {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-        {message && <p className="text-pine text-sm mt-2">✓ {message}</p>}
+        <p className="text-xs text-gray-500 mt-3">
+          <strong>Staff</strong> can edit content, media and messages. <strong>Admin</strong> can
+          additionally invite members.
+        </p>
+
+        {inviteWarning && (
+          <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+            {inviteWarning}
+          </div>
+        )}
+
         {inviteLink && (
-          <div className="mt-4 bg-pine/10 border border-pine/20 rounded-xl p-4">
-            <p className="text-sm font-semibold text-pine mb-1">Invitation link (share this):</p>
+          <div className="mt-4 bg-linen border border-wine/20 rounded-xl p-4">
+            <p className="text-sm font-semibold text-wine mb-2">Invitation link</p>
             <div className="flex items-center gap-2">
-              <code className="text-xs text-gray-700 bg-white border border-gray-200 rounded-lg px-3 py-2 flex-1 break-all">{inviteLink}</code>
+              <code className="text-xs text-gray-700 bg-white border border-gray-200 rounded-lg px-3 py-2 flex-1 break-all">
+                {inviteLink}
+              </code>
               <button
                 onClick={() => navigator.clipboard.writeText(inviteLink)}
-                className="bg-pine text-white text-xs px-3 py-2 rounded-lg hover:bg-forest transition-colors whitespace-nowrap"
+                className="bg-wine text-white text-xs px-3 py-2 rounded-lg hover:bg-wine-dark transition-colors whitespace-nowrap"
               >
                 Copy
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-2">The invited person must sign in with their Google account using this link. The link expires in 7 days.</p>
           </div>
         )}
       </div>
 
-      {/* Pending Invitations */}
+      {/* Pending invitations */}
       {invitations.length > 0 && (
         <div className="bg-white rounded-2xl p-6 shadow-sm">
-          <h2 className="font-semibold text-gray-800 mb-4">Pending Invitations</h2>
+          <h2 className="font-semibold text-gray-800 mb-4">Pending Invitations ({invitations.length})</h2>
           <div className="space-y-3">
             {invitations.map((inv) => (
-              <div key={inv._id} className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-800">{inv.email}</p>
-                  <p className="text-xs text-gray-500">Invited by {inv.invitedByEmail} · Expires {new Date(inv.expiresAt).toLocaleDateString()}</p>
+              <div
+                key={inv._id}
+                className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{inv.email}</p>
+                  <p className="text-xs text-gray-500">
+                    {ROLE_LABELS[inv.role] ?? inv.role} · invited by {inv.invitedByEmail} · expires{' '}
+                    {new Date(inv.expiresAt).toLocaleDateString()}
+                  </p>
                 </div>
                 {isSuperAdmin && (
-                  <button onClick={() => revokeInvite(inv.token)} className="text-red-500 hover:text-red-700 text-xs font-medium">Revoke</button>
+                  <button
+                    onClick={() => revokeInvite(inv.token)}
+                    className="text-red-500 hover:text-red-700 text-xs font-medium whitespace-nowrap"
+                  >
+                    Revoke
+                  </button>
                 )}
               </div>
             ))}
@@ -166,50 +256,65 @@ export default function UsersManager() {
         </div>
       )}
 
-      {/* Current Admins */}
+      {/* Users */}
       <div className="bg-white rounded-2xl p-6 shadow-sm">
-        <h2 className="font-semibold text-gray-800 mb-4">Admin Users ({users.length})</h2>
+        <h2 className="font-semibold text-gray-800 mb-4">Team Members ({users.length})</h2>
         <div className="space-y-3">
           {users.map((u) => (
             <div key={u.uid} className="flex items-center gap-4 border border-gray-100 rounded-xl px-4 py-3">
-              <div className="w-9 h-9 rounded-full bg-pine flex items-center justify-center text-white text-sm font-bold shrink-0">
+              <div className="w-9 h-9 rounded-full bg-wine flex items-center justify-center text-white text-sm font-bold shrink-0">
                 {u.displayName?.[0]?.toUpperCase() || 'A'}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-800 truncate">{u.displayName}</p>
-                <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                <p className="text-sm font-medium text-gray-800 truncate">
+                  {u.displayName}
+                  {u.uid === adminUser?.uid && <span className="text-gray-400 font-normal"> (you)</span>}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  {u.email} · @{u.username}
+                </p>
               </div>
-              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${u.role === 'super_admin' ? 'bg-forest text-white' : 'bg-gray-100 text-gray-600'}`}>
-                {u.role === 'super_admin' ? 'Super Admin' : 'Admin'}
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${ROLE_BADGE[u.role]}`}>
+                {ROLE_LABELS[u.role]}
               </span>
               {isSuperAdmin && u.uid !== adminUser?.uid && (
-                <button onClick={() => removeUser(u.uid)} className="text-red-400 hover:text-red-600 text-sm ml-2">Remove</button>
+                <button
+                  onClick={() => removeUser(u.uid, u.displayName || u.email)}
+                  className="text-red-400 hover:text-red-600 text-sm ml-2 whitespace-nowrap"
+                >
+                  Remove
+                </button>
               )}
             </div>
           ))}
         </div>
       </div>
 
-      {/* Transfer Super Admin */}
-      {isSuperAdmin && users.filter((u) => u.role === 'admin').length > 0 && (
+      {/* Transfer super admin */}
+      {isSuperAdmin && transferCandidates.length > 0 && (
         <div className="bg-white rounded-2xl p-6 shadow-sm border-2 border-red-100">
           <h2 className="font-semibold text-gray-800 mb-1">Transfer Super Admin Role</h2>
-          <p className="text-xs text-gray-500 mb-4">You will become a regular admin after transfer. This action cannot be undone without the new super admin&apos;s cooperation.</p>
-          <div className="flex gap-3">
+          <p className="text-xs text-gray-500 mb-4">
+            There can only ever be one super admin. You will become a regular admin after the
+            transfer, and this cannot be undone without the new super admin&apos;s cooperation.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
             <select
               value={transferTarget}
               onChange={(e) => setTransferTarget(e.target.value)}
-              className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-red-400"
+              className={`${inputClass} flex-1`}
             >
-              <option value="">Select admin to promote…</option>
-              {users.filter((u) => u.role === 'admin').map((u) => (
-                <option key={u.uid} value={u.uid}>{u.displayName} ({u.email})</option>
+              <option value="">Select a member to promote…</option>
+              {transferCandidates.map((u) => (
+                <option key={u.uid} value={u.uid}>
+                  {u.displayName} ({u.email}) — {ROLE_LABELS[u.role]}
+                </option>
               ))}
             </select>
             <button
               onClick={transferRole}
               disabled={!transferTarget || transferring}
-              className="bg-red-500 hover:bg-red-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors disabled:opacity-40"
+              className="bg-red-500 hover:bg-red-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors disabled:opacity-40 whitespace-nowrap"
             >
               {transferring ? 'Transferring…' : 'Transfer'}
             </button>

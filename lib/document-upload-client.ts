@@ -1,7 +1,6 @@
 interface UploadOptions {
   file: File;
   folder: string;
-  token: string | undefined;
   onProgress?: (percent: number) => void;
 }
 
@@ -19,8 +18,9 @@ function putWithProgress(url: string, file: File, contentType: string, onProgres
   });
 }
 
-export async function uploadDocumentToR2({ file, folder, token, onProgress }: UploadOptions): Promise<string> {
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+export async function uploadDocumentToR2({ file, folder, onProgress }: UploadOptions): Promise<string> {
+  // Auth rides on the httpOnly session cookie, sent automatically same-origin.
+  const headers = { 'Content-Type': 'application/json' };
 
   const presignRes = await fetch('/api/documents/presign', {
     method: 'POST',

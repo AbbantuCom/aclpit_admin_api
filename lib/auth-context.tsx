@@ -1,79 +1,62 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import {
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut as fbSignOut,
-  type User,
-} from 'firebase/auth';
-import { getFirebaseAuth, createGoogleProvider } from './firebase';
-import type { AdminUser } from '@/types';
-
-// firebase/auth functions are statically imported — no code runs at import time.
-// All actual Firebase initialization is deferred to useEffect (browser-only).
+import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react';
+import type { PublicAdminUser } from '@/types';
 
 interface AuthContextValue {
-  firebaseUser: User | null;
-  adminUser: AdminUser | null;
+  adminUser: PublicAdminUser | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
+  /** Signs in with an email-or-username identifier. Throws on failure. */
+  signIn: (identifier: string, password: string) => Promise<PublicAdminUser>;
   signOut: () => Promise<void>;
+  /** Re-reads the session from the server (after a role change, for example). */
+  refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
-  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
+  const [adminUser, setAdminUser] = useState<PublicAdminUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // getFirebaseAuth() initializes Firebase on first call — safe here because
-    // useEffect only runs in the browser, never during SSR.
-    const auth = getFirebaseAuth();
-
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      setFirebaseUser(user);
-      if (user) {
-        try {
-          const token = await user.getIdToken();
-          const res = await fetch('/api/auth/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token }),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            setAdminUser(data.user);
-          } else {
-            setAdminUser(null);
-          }
-        } catch {
-          setAdminUser(null);
-        }
-      } else {
-        setAdminUser(null);
-      }
-      setLoading(false);
-    });
-
-    return unsub;
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch('/api/auth/me');
+      setAdminUser(res.ok ? (await res.json()).user : null);
+    } catch {
+      setAdminUser(null);
+    }
   }, []);
 
-  async function signInWithGoogle() {
-    await signInWithPopup(getFirebaseAuth(), createGoogleProvider());
+  useEffect(() => {
+    // The session lives in an httpOnly cookie the browser can't read, so the
+    // only way to know who (if anyone) is signed in is to ask the server.
+    refresh().finally(() => setLoading(false));
+  }, [refresh]);
+
+  async function signIn(identifier: string, password: string): Promise<PublicAdminUser> {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier, password }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Sign-in failed. Please try again.');
+
+    setAdminUser(data.user);
+    return data.user as PublicAdminUser;
   }
 
-  async function signOut() {
-    await fbSignOut(getFirebaseAuth());
-    setAdminUser(null);
+  async function signOut(): Promise<void> {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } finally {
+      setAdminUser(null);
+    }
   }
 
   return (
-    <AuthContext.Provider
-      value={{ firebaseUser, adminUser, loading, signInWithGoogle, signOut }}
-    >
+    <AuthContext.Provider value={{ adminUser, loading, signIn, signOut, refresh }}>
       {children}
     </AuthContext.Provider>
   );

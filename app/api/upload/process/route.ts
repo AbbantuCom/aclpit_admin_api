@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth } from '@/lib/firebase-admin';
-import { getDb } from '@/lib/mongodb';
 import { getObjectBuffer, putObjectBuffer, deleteObject, publicUrlFor } from '@/lib/r2';
+import { requireRole, authError } from '@/lib/session';
+import { CONTENT_ROLES } from '@/types';
 import { optimizeImage } from '@/lib/image-optimize';
 import { optimizeVideo } from '@/lib/video-optimize';
 
@@ -10,23 +10,9 @@ export const runtime = 'nodejs';
 // default. Clamped by your hosting plan's serverless function duration limit.
 export const maxDuration = 60;
 
-async function getRequestUser(req: NextRequest) {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return null;
-  try {
-    const decoded = await adminAuth.verifyIdToken(authHeader.slice(7));
-    const db = await getDb();
-    return await db.collection('users').findOne({ uid: decoded.uid });
-  } catch {
-    return null;
-  }
-}
-
 export async function POST(req: NextRequest) {
-  const requestUser = await getRequestUser(req);
-  if (!requestUser || !['super_admin', 'admin'].includes(requestUser.role as string)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  const auth = await requireRole(CONTENT_ROLES);
+  if ('failure' in auth) return authError(auth.failure);
 
   const { key, type, folder } = await req.json();
   if (!key || !type || !folder) {
