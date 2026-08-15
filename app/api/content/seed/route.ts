@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
+import { recordAudit } from '@/lib/audit';
 import {
   defaultHero,
   defaultAbout,
@@ -25,6 +26,7 @@ const sections = [
 export async function POST() {
   const db = await getDb();
   const now = new Date().toISOString();
+  const inserted: string[] = [];
 
   // Seeded content starts out live: draft and published hold the same snapshot,
   // so a freshly seeded section reports no pending changes.
@@ -40,7 +42,20 @@ export async function POST() {
         publishedAt: now,
         publishedBy: 'system',
       });
+      inserted.push(s.section);
     }
+  }
+
+  // This route takes no session, so the entry is attributed to the request itself
+  // (IP and user agent) rather than to a person.
+  if (inserted.length > 0) {
+    await recordAudit({
+      actor: null,
+      actorLabel: 'Seed endpoint',
+      action: 'content.seed',
+      target: `${inserted.length} section${inserted.length === 1 ? '' : 's'}`,
+      details: { sections: inserted },
+    });
   }
 
   return NextResponse.json({ ok: true, seeded: sections.map((s) => s.section) });

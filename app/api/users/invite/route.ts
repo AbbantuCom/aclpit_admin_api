@@ -4,6 +4,7 @@ import { getDb } from '@/lib/mongodb';
 import { requireRole, authError } from '@/lib/session';
 import { sendInvitationEmail, getAppUrl } from '@/lib/email';
 import { normalizeEmail, isValidEmail, asString } from '@/lib/validation';
+import { recordAudit } from '@/lib/audit';
 import { USER_MANAGEMENT_ROLES } from '@/types';
 import type { AdminUser, Invitation, UserRole } from '@/types';
 
@@ -74,6 +75,13 @@ export async function POST(req: NextRequest) {
     token,
   });
 
+  await recordAudit({
+    actor: auth.user,
+    action: 'user.invite',
+    target: email,
+    details: { role, emailSent: emailResult.ok },
+  });
+
   // The link is returned either way so an admin can pass it on manually if
   // mail delivery is misconfigured — the invite itself is already valid.
   return NextResponse.json({
@@ -99,7 +107,15 @@ export async function DELETE(req: NextRequest) {
   if (!token) return NextResponse.json({ error: 'token is required' }, { status: 400 });
 
   const db = await getDb();
-  await db.collection<Invitation>('invitations').deleteOne({ token });
+  // Deleted-and-returned so the entry can name the invitee rather than a token.
+  const revoked = await db.collection<Invitation>('invitations').findOneAndDelete({ token });
+
+  await recordAudit({
+    actor: auth.user,
+    action: 'user.invite_revoke',
+    target: revoked?.email ?? 'unknown invitation',
+    details: revoked ? { role: revoked.role } : undefined,
+  });
 
   return NextResponse.json({ ok: true });
 }

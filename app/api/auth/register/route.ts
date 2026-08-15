@@ -6,6 +6,7 @@ import { createSessionToken, setSessionCookie, toPublicUser } from '@/lib/sessio
 import { sendWelcomeEmail } from '@/lib/email';
 import { normalizeEmail, normalizeUsername, isValidEmail, checkUsername, asString } from '@/lib/validation';
 import { ensureUserIndexes, isDuplicateKeyError } from '@/lib/users';
+import { recordAudit } from '@/lib/audit';
 import type { AdminUser } from '@/types';
 
 /**
@@ -79,6 +80,13 @@ export async function POST(req: NextRequest) {
 
   // Best-effort welcome mail; a mail failure must not block account creation.
   await sendWelcomeEmail({ to: email, displayName: user.displayName });
+
+  // The first entry in the log: whoever claimed this deployment, and when.
+  await recordAudit({
+    actor: toPublicUser(user),
+    action: 'auth.super_admin_created',
+    target: user.email,
+  });
 
   const token = await createSessionToken({ uid: user.uid, role: user.role });
   const res = NextResponse.json({ user: toPublicUser(user) });

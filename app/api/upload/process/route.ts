@@ -4,6 +4,7 @@ import { requireRole, authError } from '@/lib/session';
 import { CONTENT_ROLES } from '@/types';
 import { optimizeImage } from '@/lib/image-optimize';
 import { optimizeVideo } from '@/lib/video-optimize';
+import { recordAudit } from '@/lib/audit';
 
 export const runtime = 'nodejs';
 // Video transcoding is CPU-bound — raise the function timeout above the Next.js
@@ -31,6 +32,13 @@ export async function POST(req: NextRequest) {
     const finalKey = `${folder}/${Date.now()}.${extension}`;
     await putObjectBuffer(finalKey, buffer, contentType);
     await deleteObject(key);
+
+    await recordAudit({
+      actor: auth.user,
+      action: 'media.upload',
+      target: finalKey,
+      details: { type, folder, bytes: buffer.length },
+    });
 
     return NextResponse.json({ url: publicUrlFor(finalKey) });
   } catch (err) {

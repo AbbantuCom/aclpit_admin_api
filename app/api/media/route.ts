@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
 import { listObjects, deleteObject, publicUrlFor } from '@/lib/r2';
 import { requireRole, authError } from '@/lib/session';
+import { recordAudit } from '@/lib/audit';
 import { CONTENT_ROLES } from '@/types';
 
 export async function GET() {
@@ -33,5 +34,7 @@ export async function DELETE(req: NextRequest) {
   if (!key) return NextResponse.json({ error: 'key is required' }, { status: 400 });
 
   await deleteObject(key);
+  await recordAudit({ actor: auth.user, action: 'media.delete', target: key });
+
   return NextResponse.json({ ok: true });
 }

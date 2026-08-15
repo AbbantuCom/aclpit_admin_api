@@ -25,9 +25,10 @@ export async function proxy(req: NextRequest) {
     const { payload } = await jwtVerify(token, getSecret());
     const role = typeof payload.role === 'string' ? payload.role : '';
 
-    // Staff have no business on the Users screen — bounce them to the dashboard
-    // rather than letting them load a page whose API calls would all 403.
-    if (pathname.startsWith('/admin/users') && !USER_MANAGEMENT_ROLES.includes(role)) {
+    // Staff have no business on the Users or Activity Log screens — bounce them to
+    // the dashboard rather than letting them load a page whose API calls would 403.
+    const restricted = pathname.startsWith('/admin/users') || pathname.startsWith('/admin/audit');
+    if (restricted && !USER_MANAGEMENT_ROLES.includes(role)) {
       return NextResponse.redirect(new URL('/admin', req.url));
     }
 

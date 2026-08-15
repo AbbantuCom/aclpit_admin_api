@@ -3,6 +3,7 @@ import { createHash } from 'crypto';
 import { getDb } from '@/lib/mongodb';
 import { hashPassword, checkPasswordStrength } from '@/lib/password';
 import { asString } from '@/lib/validation';
+import { recordAudit } from '@/lib/audit';
 import type { AdminUser, PasswordResetToken } from '@/types';
 
 const INVALID_TOKEN = 'This password reset link is invalid or has expired. Please request a new one.';
@@ -37,12 +38,25 @@ export async function POST(req: NextRequest) {
 
   const db = await getDb();
 
-  await db
+  const updated = await db
     .collection<AdminUser>('users')
-    .updateOne({ uid: record.uid }, { $set: { passwordHash: await hashPassword(password) } });
+    .findOneAndUpdate(
+      { uid: record.uid },
+      { $set: { passwordHash: await hashPassword(password) } },
+      { returnDocument: 'after' }
+    );
 
   // Single-use: burn the token (and any siblings) so the link cannot be replayed.
   await db.collection<PasswordResetToken>('passwordResetTokens').deleteMany({ uid: record.uid });
+
+  // No session here — the reset link is the only proof of identity — so the entry
+  // is attributed to the account the token belonged to.
+  await recordAudit({
+    actor: null,
+    actorLabel: updated?.email ?? record.uid,
+    action: 'auth.password_reset',
+    target: updated?.email ?? record.uid,
+  });
 
   return NextResponse.json({ ok: true, message: 'Your password has been updated. You can now sign in.' });
 }

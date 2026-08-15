@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
 import { corsHeaders, corsPreflight } from '@/lib/cors';
 import { requireRole, authError } from '@/lib/session';
+import { recordAudit } from '@/lib/audit';
 import { CONTENT_ROLES } from '@/types';
 
 export async function OPTIONS(req: NextRequest) {
@@ -52,7 +53,17 @@ export async function PATCH() {
   if ('failure' in auth) return authError(auth.failure);
 
   const db = await getDb();
-  await db.collection('contactSubmissions').updateMany({ read: false }, { $set: { read: true } });
+  const result = await db
+    .collection('contactSubmissions')
+    .updateMany({ read: false }, { $set: { read: true } });
+
+  if (result.modifiedCount > 0) {
+    await recordAudit({
+      actor: auth.user,
+      action: 'message.read_all',
+      target: `${result.modifiedCount} message${result.modifiedCount === 1 ? '' : 's'}`,
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }

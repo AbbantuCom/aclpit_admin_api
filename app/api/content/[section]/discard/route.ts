@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, authError } from '@/lib/session';
 import { readContent, type ContentDoc } from '@/lib/content';
+import { recordAudit } from '@/lib/audit';
 import { CONTENT_ROLES } from '@/types';
 
 /**
@@ -35,6 +36,8 @@ export async function POST(
     { section },
     { $set: { section, draft: state.published, draftUpdatedAt: now, draftUpdatedBy: auth.user.uid } }
   );
+
+  await recordAudit({ actor: auth.user, action: 'content.discard', target: section });
 
   return NextResponse.json({ ok: true, data: state.published, hasUnpublishedChanges: false });
 }

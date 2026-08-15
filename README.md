@@ -18,7 +18,8 @@ Admin panel and content API backend for the **African Centre for Law and Public 
 10. [Public Content API](#public-content-api)
 11. [User & Access Management](#user--access-management)
 12. [Media Uploads](#media-uploads)
-13. [Deployment](#deployment)
+13. [Activity Log](#activity-log)
+14. [Deployment](#deployment)
 
 ---
 
@@ -410,6 +411,43 @@ Every image field in the CMS supports two methods:
 - **Paste a URL** — any publicly accessible image URL
 
 **Publications** additionally support PDF uploads (max 20 MB) or an external link, via a separate presigned-upload route (`/api/documents/presign`) that stores files as-is without the image/video processing pipeline.
+
+---
+
+## Activity Log
+
+**Admin → Activity Log** (`/admin/audit`) records who did what, and when, for every
+change made through the panel: content saves, publishes and discards, media uploads
+and deletions, message changes, invitations and removals, and sign-in events
+(including failed attempts). Each entry stores the actor, the action, what it
+touched, the caller's IP and user agent, and an ISO timestamp.
+
+- **Reading is restricted to Admin and Super Admin.** Staff are redirected away by
+  `proxy.ts`, and `GET /api/audit` returns 403 for them.
+- **Only the Super Admin can delete entries.** Tick rows and press Delete, or tick
+  the whole page and then "Select all N matching this filter" to remove every entry
+  the current filter covers — with no filter set, that is the entire log. Admins can
+  read but not erase, so no one below the top account can remove the record of their
+  own actions.
+- **A purge records itself.** The `audit.purge` entry is written *after* the rows
+  are removed, naming who deleted how many and under which filter, so a deletion
+  cannot erase its own trace.
+- **Nothing is ever edited.** Entries are only inserted, read and (by the super
+  admin) deleted — no code path updates one in place.
+- **Actor details are a snapshot.** The name, email and role are copied onto the
+  entry as they were at the time, so a record still reads correctly after someone
+  is renamed, demoted or removed.
+- **Never blocks the action it describes.** `recordAudit()` swallows its own errors
+  and warns to the server console, so a logging failure cannot turn a successful
+  publish into a 500.
+
+Actions are declared in `lib/audit-actions.ts`; add new ones there before recording
+them, since the union is what keeps route code and the log screen's labels in step.
+That file is deliberately free of server imports so the client screen can read the
+labels — the reading and writing live in `lib/audit.ts`.
+
+Beyond manual deletion the log grows without bound. If you want automatic
+retention, add a TTL index on a date-typed field, or archive and prune out of band.
 
 ---
 

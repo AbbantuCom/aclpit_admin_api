@@ -3,6 +3,7 @@ import { getDb } from '@/lib/mongodb';
 import { requireRole, authError } from '@/lib/session';
 import { CONTENT_SECTIONS, publishSection } from '@/lib/content';
 import { notifyClientRevalidate } from '@/lib/revalidate';
+import { recordAudit } from '@/lib/audit';
 import { CONTENT_ROLES } from '@/types';
 
 /**
@@ -25,6 +26,16 @@ export async function POST() {
   }
 
   await Promise.all(published.map(notifyClientRevalidate));
+
+  // Nothing published means nothing changed — an entry would be noise.
+  if (published.length > 0) {
+    await recordAudit({
+      actor: auth.user,
+      action: 'content.publish_all',
+      target: `${published.length} section${published.length === 1 ? '' : 's'}`,
+      details: { sections: published },
+    });
+  }
 
   return NextResponse.json({ ok: true, published, publishedCount: published.length });
 }

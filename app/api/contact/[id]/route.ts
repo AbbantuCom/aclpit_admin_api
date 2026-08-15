@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, authError } from '@/lib/session';
+import { recordAudit } from '@/lib/audit';
 import { CONTENT_ROLES } from '@/types';
 
 export async function PATCH(
@@ -23,6 +24,8 @@ export async function PATCH(
     { $set: update }
   );
 
+  await recordAudit({ actor: auth.user, action: 'message.update', target: id, details: update });
+
   return NextResponse.json({ ok: true });
 }
 
@@ -35,7 +38,18 @@ export async function DELETE(
   if ('failure' in auth) return authError(auth.failure);
 
   const db = await getDb();
-  await db.collection('contactSubmissions').deleteOne({ _id: new ObjectId(id) });
+  // Deleted-and-returned in one step so the audit entry can name whose message it
+  // was — after the delete there is nothing left to look up.
+  const removed = await db
+    .collection('contactSubmissions')
+    .findOneAndDelete({ _id: new ObjectId(id) });
+
+  await recordAudit({
+    actor: auth.user,
+    action: 'message.delete',
+    target: id,
+    details: removed ? { from: removed.email, subject: removed.subject } : undefined,
+  });
 
   return NextResponse.json({ ok: true });
 }

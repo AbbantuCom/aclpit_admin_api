@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, authError, createSessionToken, setSessionCookie } from '@/lib/session';
 import { asString } from '@/lib/validation';
+import { recordAudit } from '@/lib/audit';
 import type { AdminUser } from '@/types';
 
 /**
@@ -36,6 +37,13 @@ export async function POST(req: NextRequest) {
 
   await db.collection<AdminUser>('users').updateOne({ uid: auth.user.uid }, { $set: { role: 'admin' } });
   await db.collection<AdminUser>('users').updateOne({ uid: targetUid }, { $set: { role: 'super_admin' } });
+
+  await recordAudit({
+    actor: auth.user,
+    action: 'user.transfer_ownership',
+    target: target.email,
+    details: { fromUid: auth.user.uid, toUid: targetUid },
+  });
 
   // The caller's session still claims super_admin — reissue it at the new role
   // so the cookie can't be used to keep acting as super admin.

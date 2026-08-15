@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, authError } from '@/lib/session';
+import { recordAudit } from '@/lib/audit';
 import type { AdminUser } from '@/types';
 
 export async function DELETE(
@@ -39,6 +40,13 @@ export async function DELETE(
   await db.collection<AdminUser>('users').deleteOne({ uid });
   // Clean up anything that would let a removed account get back in.
   await db.collection('passwordResetTokens').deleteMany({ uid });
+
+  await recordAudit({
+    actor: auth.user,
+    action: 'user.delete',
+    target: target.email,
+    details: { uid, role: target.role },
+  });
 
   return NextResponse.json({ ok: true });
 }

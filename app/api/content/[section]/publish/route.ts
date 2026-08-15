@@ -3,6 +3,7 @@ import { getDb } from '@/lib/mongodb';
 import { requireRole, authError } from '@/lib/session';
 import { publishSection } from '@/lib/content';
 import { notifyClientRevalidate } from '@/lib/revalidate';
+import { recordAudit } from '@/lib/audit';
 import { CONTENT_ROLES } from '@/types';
 
 /**
@@ -36,6 +37,7 @@ export async function POST(
   }
 
   await notifyClientRevalidate(section);
+  await recordAudit({ actor: auth.user, action: 'content.publish', target: section });
 
   return NextResponse.json({
     ok: true,

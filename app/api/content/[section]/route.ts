@@ -4,6 +4,7 @@ import { corsHeaders, corsPreflight } from '@/lib/cors';
 import { requireRole, authError, getSessionUser } from '@/lib/session';
 import { readContent, type ContentDoc } from '@/lib/content';
 import { isValidPreviewSecret } from '@/lib/preview';
+import { recordAudit } from '@/lib/audit';
 import { CONTENT_ROLES } from '@/types';
 
 export async function OPTIONS(req: NextRequest) {
@@ -81,6 +82,8 @@ export async function PUT(
   );
 
   const state = await readContent(db, section);
+
+  await recordAudit({ actor: auth.user, action: 'content.save', target: section });
 
   return NextResponse.json({
     ok: true,

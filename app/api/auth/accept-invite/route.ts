@@ -5,6 +5,7 @@ import { hashPassword, checkPasswordStrength } from '@/lib/password';
 import { createSessionToken, setSessionCookie, toPublicUser } from '@/lib/session';
 import { normalizeUsername, checkUsername, asString } from '@/lib/validation';
 import { ensureUserIndexes, isDuplicateKeyError } from '@/lib/users';
+import { recordAudit } from '@/lib/audit';
 import type { AdminUser, Invitation } from '@/types';
 
 const INVALID_INVITE = 'This invitation is invalid or has expired. Ask an administrator for a new one.';
@@ -85,6 +86,13 @@ export async function POST(req: NextRequest) {
   await db
     .collection<Invitation>('invitations')
     .updateOne({ token: invite.token }, { $set: { status: 'accepted' } });
+
+  await recordAudit({
+    actor: toPublicUser(user),
+    action: 'auth.invite_accepted',
+    target: user.email,
+    details: { role: user.role, invitedBy: invite.invitedByEmail },
+  });
 
   const sessionToken = await createSessionToken({ uid: user.uid, role: user.role });
   const res = NextResponse.json({ user: toPublicUser(user) });

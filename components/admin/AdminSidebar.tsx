@@ -24,6 +24,7 @@ const navItems = [
   { label: 'Messages',        href: '/admin/messages',       icon: '✎' },
   { label: 'Media Library',   href: '/admin/media',          icon: '▣' },
   { label: 'Users',           href: '/admin/users',          icon: '◈', requiresUserManagement: true },
+  { label: 'Activity Log',    href: '/admin/audit',          icon: '☰', requiresUserManagement: true },
 ];
 
 interface Props {
