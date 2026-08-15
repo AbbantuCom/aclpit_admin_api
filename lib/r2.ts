@@ -49,8 +49,23 @@ export async function getObjectBuffer(key: string): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
+/**
+ * Copies a buffer out of WebAssembly memory when that is where it lives.
+ *
+ * When the native sharp binary is unavailable, sharp falls back to @img/sharp-wasm32,
+ * whose output is a view over WASM shared memory — so `.buffer` is a SharedArrayBuffer
+ * rather than an ArrayBuffer. SigV4 payload hashing rejects that outright
+ * (@smithy/hash-node → fromArrayBuffer → 'The "input" argument must be ArrayBuffer'),
+ * so every upload fails with a type error that names nothing to do with images.
+ */
+function toUnsharedBuffer(body: Buffer): Buffer {
+  return body.buffer instanceof ArrayBuffer ? body : Buffer.from(body);
+}
+
 export async function putObjectBuffer(key: string, body: Buffer, contentType: string): Promise<void> {
-  await getR2Client().send(new PutObjectCommand({ Bucket: getBucket(), Key: key, Body: body, ContentType: contentType }));
+  await getR2Client().send(
+    new PutObjectCommand({ Bucket: getBucket(), Key: key, Body: toUnsharedBuffer(body), ContentType: contentType })
+  );
 }
 
 export async function deleteObject(key: string): Promise<void> {
