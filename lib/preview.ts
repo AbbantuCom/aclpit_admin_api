@@ -66,15 +66,38 @@ export const SECTION_PREVIEW_PATHS: Record<ContentSectionName, string> = {
 };
 
 /**
- * Full preview URL for a section, or null when previewing is not configured.
- * Returning null (rather than throwing) lets the admin UI simply hide the button
- * on a deployment that has no public site wired up yet.
+ * Whether this deployment can produce preview links at all. Callers use it to hide
+ * the Preview button rather than erroring on a deployment with no public site
+ * wired up yet.
  */
-export function buildPreviewUrl(section: ContentSectionName): string | null {
+export function isPreviewConfigured(): boolean {
+  return Boolean(process.env.CLIENT_URL && process.env.PREVIEW_SECRET);
+}
+
+/**
+ * The public site's own preview entry point, carrying a freshly signed token.
+ *
+ * This is the URL the admin's preview screen loads *inside its iframe* — editors
+ * are not handed it directly, so the token's 15-minute life starts when the frame
+ * is rendered. Returns null when previewing is not configured.
+ */
+export function buildClientPreviewUrl(section: ContentSectionName): string | null {
   const clientUrl = process.env.CLIENT_URL;
-  if (!clientUrl || !process.env.PREVIEW_SECRET) return null;
+  if (!clientUrl || !isPreviewConfigured()) return null;
 
   const path = SECTION_PREVIEW_PATHS[section];
   const token = signPreviewToken(path);
   return `${clientUrl.replace(/\/$/, '')}/api/preview?token=${encodeURIComponent(token)}`;
+}
+
+/**
+ * Where the editor is sent when they click Preview: a screen inside the admin
+ * panel, on the admin's own domain, which frames the public site.
+ *
+ * Deliberately relative — the admin does not reliably know its own public origin
+ * behind a proxy, and the browser resolves this against the page the editor is
+ * already on.
+ */
+export function buildAdminPreviewPath(section: ContentSectionName): string | null {
+  return isPreviewConfigured() ? `/admin/preview/${section}` : null;
 }

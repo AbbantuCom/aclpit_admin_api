@@ -142,7 +142,12 @@ cp .env.local.example .env.local
 
 ```env
 MONGODB_URI=mongodb+srv://<user>:<password>@cluster0.xxxxx.mongodb.net/<dbname>?retryWrites=true&w=majority
+MONGODB_DB=aclpit
 ```
+
+Both are required. `MONGODB_DB` is the database used inside the cluster; the app
+throws `MONGODB_DB environment variable is not set` rather than guessing a name,
+since a wrong guess writes content into a database nobody is reading from.
 
 ### App URL
 
@@ -200,7 +205,7 @@ REVALIDATE_SECRET=another-long-random-string-shared-with-the-client-repo
 PREVIEW_SECRET=a-third-long-random-string-shared-with-the-client-repo
 ```
 
-- **`CLIENT_URL`** — base URL of the public client site. Used for two things: after a section is **published**, this app POSTs to `${CLIENT_URL}/api/revalidate` so the client site can drop its cache for that section; and preview links point at `${CLIENT_URL}/api/preview`. If unreachable, the failure is logged (`console.warn`) and does not affect the publish.
+- **`CLIENT_URL`** — base URL of the public client site. Used for two things: after a section is **published**, this app POSTs to `${CLIENT_URL}/api/revalidate` so the client site can drop its cache for that section; and `/admin/preview/:section` frames `${CLIENT_URL}/api/preview` so editors review drafts without leaving this panel. If unreachable, the failure is logged (`console.warn`) and does not affect the publish.
 - **`CLIENT_ORIGIN`** — comma-separated list of origins allowed to call the public endpoints (`GET /api/content/[section]`, `POST /api/contact`) cross-origin, e.g. `https://aclpit.org,https://staging.aclpit.org`.
 - **`REVALIDATE_SECRET`** — shared secret sent in the revalidate webhook body; the client repo's `/api/revalidate` route should verify it matches before clearing its cache.
 - **`PREVIEW_SECRET`** — shared secret for content previews. Signs the short-lived preview links handed to editors, and authenticates the client site's server-side reads of draft content. Must match `PREVIEW_SECRET` in the client repo. If unset, previewing is disabled (the admin panel says so) but saving and publishing are unaffected.

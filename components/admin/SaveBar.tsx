@@ -70,8 +70,11 @@ export default function SaveBar({
         return;
       }
 
-      if (tab) tab.location.href = url;
-      else window.open(url, '_blank');
+      // Absolute, because the blank tab opened above has no base URL of its own to
+      // resolve the admin-relative preview path against.
+      const absolute = new URL(url, window.location.origin).toString();
+      if (tab) tab.location.href = absolute;
+      else window.open(absolute, '_blank');
     } finally {
       setPreviewing(false);
     }

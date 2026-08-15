@@ -35,7 +35,14 @@ let _db: Db | null = null;
 
 export async function getDb(): Promise<Db> {
   if (_db) return _db;
+
+  // Named explicitly rather than taken from the URI's path: an Atlas connection
+  // string with no database in it silently falls back to `test`, which is how a
+  // deployment ends up writing content nobody can find.
+  const name = process.env.MONGODB_DB;
+  if (!name) throw new Error('MONGODB_DB environment variable is not set');
+
   const client = await getClientPromise();
-  _db = client.db('agriverde');
+  _db = client.db(name);
   return _db;
 }
