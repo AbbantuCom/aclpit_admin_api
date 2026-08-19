@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+/**
+ * Origins allowed to call the public endpoints cross-origin, from CLIENT_ORIGIN.
+ *
+ * Trailing slashes are stripped because an Origin header never has one: a value
+ * of "https://aclpit.com/" would silently match nothing, and the failure surfaces
+ * only as a CORS error in someone's browser.
+ */
 function getAllowedOrigins(): string[] {
   return (process.env.CLIENT_ORIGIN ?? '')
     .split(',')
-    .map((o) => o.trim())
+    .map((o) => o.trim().replace(/\/+$/, ''))
     .filter(Boolean);
 }
 
