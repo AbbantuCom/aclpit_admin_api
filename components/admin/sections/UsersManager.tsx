@@ -38,6 +38,7 @@ export default function UsersManager() {
 
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [statusBusy, setStatusBusy] = useState('');
 
   const isSuperAdmin = adminUser?.role === 'super_admin';
 
@@ -118,6 +119,32 @@ export default function UsersManager() {
     load();
   }
 
+  async function setUserStatus(uid: string, label: string, deactivate: boolean) {
+    const prompt = deactivate
+      ? `Deactivate ${label}? They are signed out immediately and cannot sign back in, but their account and history are kept.`
+      : `Reactivate ${label}? They will be able to sign in again with their existing password.`;
+    if (!confirm(prompt)) return;
+
+    setError('');
+    setMessage('');
+    setStatusBusy(uid);
+    try {
+      const res = await fetch(`/api/users/${uid}`, {
+        method: 'PATCH',
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ status: deactivate ? 'deactivated' : 'active' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setMessage(`${label} ${deactivate ? 'deactivated' : 'reactivated'}.`);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not change account status.');
+    } finally {
+      setStatusBusy('');
+    }
+  }
+
   async function transferRole() {
     if (!transferTarget) return;
     if (!confirm('Transfer the super admin role? You will become a regular admin.')) return;
@@ -149,7 +176,11 @@ export default function UsersManager() {
     return <div className="text-center py-20 text-gray-500">Loading users…</div>;
   }
 
-  const transferCandidates = users.filter((u) => u.role !== 'super_admin');
+  // Deactivated accounts are excluded: the transfer route refuses a target that
+  // is not active, so offering them would only produce an error.
+  const transferCandidates = users.filter(
+    (u) => u.role !== 'super_admin' && u.status !== 'deactivated'
+  );
 
   return (
     <div className="space-y-8">
@@ -261,12 +292,21 @@ export default function UsersManager() {
         <h2 className="font-semibold text-gray-800 mb-4">Team Members ({users.length})</h2>
         <div className="space-y-3">
           {users.map((u) => (
-            <div key={u.uid} className="flex items-center gap-4 border border-gray-100 rounded-xl px-4 py-3">
-              <div className="w-9 h-9 rounded-full bg-wine flex items-center justify-center text-white text-sm font-bold shrink-0">
+            <div
+              key={u.uid}
+              className={`flex items-center gap-4 border rounded-xl px-4 py-3 ${
+                u.status === 'deactivated' ? 'border-gray-200 bg-gray-50' : 'border-gray-100'
+              }`}
+            >
+              <div
+                className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 ${
+                  u.status === 'deactivated' ? 'bg-gray-300' : 'bg-wine'
+                }`}
+              >
                 {u.displayName?.[0]?.toUpperCase() || 'A'}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-800 truncate">
+                <p className={`text-sm font-medium truncate ${u.status === 'deactivated' ? 'text-gray-500' : 'text-gray-800'}`}>
                   {u.displayName}
                   {u.uid === adminUser?.uid && <span className="text-gray-400 font-normal"> (you)</span>}
                 </p>
@@ -274,9 +314,38 @@ export default function UsersManager() {
                   {u.email} · @{u.username}
                 </p>
               </div>
+
+              {u.status === 'deactivated' && (
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap bg-gray-200 text-gray-600">
+                  Deactivated
+                </span>
+              )}
+
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${ROLE_BADGE[u.role]}`}>
                 {ROLE_LABELS[u.role]}
               </span>
+
+              {/* Admins and the super admin can switch an account off; only the
+                  super admin can delete one outright. Neither applies to the
+                  super admin's own account or to the person acting. */}
+              {u.uid !== adminUser?.uid && u.role !== 'super_admin' && (
+                <button
+                  onClick={() => setUserStatus(u.uid, u.displayName || u.email, u.status !== 'deactivated')}
+                  disabled={statusBusy === u.uid}
+                  className={`text-sm ml-2 whitespace-nowrap disabled:opacity-50 ${
+                    u.status === 'deactivated'
+                      ? 'text-forest hover:text-pine'
+                      : 'text-amber-600 hover:text-amber-700'
+                  }`}
+                >
+                  {statusBusy === u.uid
+                    ? 'Saving…'
+                    : u.status === 'deactivated'
+                      ? 'Reactivate'
+                      : 'Deactivate'}
+                </button>
+              )}
+
               {isSuperAdmin && u.uid !== adminUser?.uid && (
                 <button
                   onClick={() => removeUser(u.uid, u.displayName || u.email)}

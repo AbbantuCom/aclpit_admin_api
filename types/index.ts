@@ -21,7 +21,7 @@ export interface AdminUser {
   role: UserRole;
   invitedBy?: string;
   createdAt: string;
-  status: 'active' | 'pending';
+  status: 'active' | 'pending' | 'deactivated';
   emailVerified: boolean;
   lastLoginAt?: string;
 }

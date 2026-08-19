@@ -22,6 +22,8 @@ export const AUDIT_ACTIONS = {
   'user.invite': 'Invited user',
   'user.invite_revoke': 'Revoked invitation',
   'user.delete': 'Removed user',
+  'user.deactivate': 'Deactivated account',
+  'user.reactivate': 'Reactivated account',
   'user.transfer_ownership': 'Transferred super admin role',
   'auth.login': 'Signed in',
   'auth.login_failed': 'Failed sign-in attempt',

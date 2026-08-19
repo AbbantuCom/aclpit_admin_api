@@ -395,6 +395,28 @@ invitation is still valid and the UI shows the link so it can be shared manually
 Only the Super Admin can revoke pending invitations, remove members, or transfer
 the role.
 
+### Deactivating an account
+
+When someone leaves, **Admin → Users → Deactivate** switches their account off
+without destroying it. Available to **Admin and Super Admin**; deleting an account
+outright remains Super Admin only.
+
+- **Access ends immediately, not at cookie expiry.** `getSessionUser()` re-reads the
+  account on every request and returns `null` unless its status is `active`, so a
+  deactivated person's open session stops working on their next click. They also
+  cannot sign in (`This account is not active.`) or request a password reset.
+- **Nothing is lost.** The account, its authorship on saved drafts and its audit
+  history all stay intact, and **Reactivate** restores access with the same password.
+  Use this rather than Remove unless you genuinely want the record gone.
+- **Two guardrails.** You cannot change your own status (that would lock you out with
+  nobody obliged to undo it), and the super admin cannot be deactivated — transfer the
+  role first if that is the person leaving.
+- Deactivated accounts are excluded from the super-admin transfer list, and any
+  outstanding password-reset tokens are deleted on deactivation.
+
+Both directions are written to the [Activity Log](#activity-log) as
+`user.deactivate` / `user.reactivate`, naming who did it and when.
+
 ### Sessions
 
 Sessions last 7 days, but the signed-in user is re-read from the database on
