@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { MAX_SUPER_ADMINS } from '@/types';
 import type { PublicAdminUser, Invitation, UserRole } from '@/types';
 
 const inputClass =
@@ -39,6 +40,7 @@ export default function UsersManager() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [statusBusy, setStatusBusy] = useState('');
+  const [roleBusy, setRoleBusy] = useState('');
 
   const isSuperAdmin = adminUser?.role === 'super_admin';
 
@@ -145,6 +147,39 @@ export default function UsersManager() {
     }
   }
 
+  async function setUserRole(uid: string, label: string, nextRole: UserRole) {
+    const prompt =
+      nextRole === 'super_admin'
+        ? `Promote ${label} to super admin? They will be able to manage roles, remove accounts and delete activity entries.`
+        : `Demote ${label} to admin? They keep their account but lose super admin powers.`;
+    if (!confirm(prompt)) return;
+
+    setError('');
+    setMessage('');
+    setRoleBusy(uid);
+    try {
+      const res = await fetch(`/api/users/${uid}`, {
+        method: 'PATCH',
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ role: nextRole }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setMessage(
+        nextRole === 'super_admin'
+          ? `${label} is now a super admin.`
+          : `${label} is now an admin.`
+      );
+      // Demoting yourself changes your own powers — refresh the session-backed user.
+      if (uid === adminUser?.uid) await refresh();
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not change role.');
+    } finally {
+      setRoleBusy('');
+    }
+  }
+
   async function transferRole() {
     if (!transferTarget) return;
     if (!confirm('Transfer the super admin role? You will become a regular admin.')) return;
@@ -181,6 +216,13 @@ export default function UsersManager() {
   const transferCandidates = users.filter(
     (u) => u.role !== 'super_admin' && u.status !== 'deactivated'
   );
+
+  // The cap counts active holders only — a deactivated super admin cannot act, so
+  // it does not occupy a slot.
+  const activeSuperAdmins = users.filter(
+    (u) => u.role === 'super_admin' && u.status !== 'deactivated'
+  ).length;
+  const superAdminSlotFree = activeSuperAdmins < MAX_SUPER_ADMINS;
 
   return (
     <div className="space-y-8">
@@ -289,7 +331,12 @@ export default function UsersManager() {
 
       {/* Users */}
       <div className="bg-white rounded-2xl p-6 shadow-sm">
-        <h2 className="font-semibold text-gray-800 mb-4">Team Members ({users.length})</h2>
+        <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+          <h2 className="font-semibold text-gray-800">Team Members ({users.length})</h2>
+          <span className="text-xs text-gray-500">
+            Super admins: {activeSuperAdmins} of {MAX_SUPER_ADMINS}
+          </span>
+        </div>
         <div className="space-y-3">
           {users.map((u) => (
             <div
@@ -325,9 +372,36 @@ export default function UsersManager() {
                 {ROLE_LABELS[u.role]}
               </span>
 
-              {/* Admins and the super admin can switch an account off; only the
-                  super admin can delete one outright. Neither applies to the
-                  super admin's own account or to the person acting. */}
+              {/* Only a super admin changes roles. Promotion is offered while a slot
+                  is free; demotion is offered on any super admin other than the
+                  last active one, including yourself when stepping down. */}
+              {isSuperAdmin && u.status !== 'deactivated' && (
+                u.role === 'super_admin' ? (
+                  activeSuperAdmins > 1 && (
+                    <button
+                      onClick={() => setUserRole(u.uid, u.displayName || u.email, 'admin')}
+                      disabled={roleBusy === u.uid}
+                      className="text-sm ml-2 whitespace-nowrap text-gray-500 hover:text-gray-800 disabled:opacity-50"
+                    >
+                      {roleBusy === u.uid ? 'Saving…' : u.uid === adminUser?.uid ? 'Step down' : 'Demote'}
+                    </button>
+                  )
+                ) : (
+                  superAdminSlotFree && (
+                    <button
+                      onClick={() => setUserRole(u.uid, u.displayName || u.email, 'super_admin')}
+                      disabled={roleBusy === u.uid}
+                      className="text-sm ml-2 whitespace-nowrap text-wine hover:text-wine/70 disabled:opacity-50"
+                    >
+                      {roleBusy === u.uid ? 'Saving…' : 'Make super admin'}
+                    </button>
+                  )
+                )
+              )}
+
+              {/* Admins and super admins can switch an account off; only a super
+                  admin can delete one outright. Neither applies to the person
+                  acting, and a super admin must be demoted before either. */}
               {u.uid !== adminUser?.uid && u.role !== 'super_admin' && (
                 <button
                   onClick={() => setUserStatus(u.uid, u.displayName || u.email, u.status !== 'deactivated')}
@@ -364,8 +438,11 @@ export default function UsersManager() {
         <div className="bg-white rounded-2xl p-6 shadow-sm border-2 border-red-100">
           <h2 className="font-semibold text-gray-800 mb-1">Transfer Super Admin Role</h2>
           <p className="text-xs text-gray-500 mb-4">
-            There can only ever be one super admin. You will become a regular admin after the
-            transfer, and this cannot be undone without the new super admin&apos;s cooperation.
+            Hand your role to someone else <em>and step down in one action</em> — you become a
+            regular admin, and the number of super admins stays the same. To keep your role and
+            add a second super admin alongside you, use <strong>Make super admin</strong> on the
+            list above instead. This cannot be undone without the other super admin&apos;s
+            cooperation.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             <select

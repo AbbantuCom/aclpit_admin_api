@@ -22,6 +22,7 @@ export const AUDIT_ACTIONS = {
   'user.invite': 'Invited user',
   'user.invite_revoke': 'Revoked invitation',
   'user.delete': 'Removed user',
+  'user.role_change': 'Changed role',
   'user.deactivate': 'Deactivated account',
   'user.reactivate': 'Reactivated account',
   'user.transfer_ownership': 'Transferred super admin role',

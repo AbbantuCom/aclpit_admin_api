@@ -5,6 +5,15 @@ export type UserRole = 'super_admin' | 'admin' | 'staff';
 /** Roles allowed to manage people (invite, remove, transfer). Staff cannot. */
 export const USER_MANAGEMENT_ROLES: readonly UserRole[] = ['super_admin', 'admin'];
 
+/**
+ * How many super admins may exist at once.
+ *
+ * Two, so the role is never a single point of failure — if one person is away or
+ * leaves, the other can still promote, demote and remove people. Promotion beyond
+ * this cap is refused rather than queued.
+ */
+export const MAX_SUPER_ADMINS = 2;
+
 /** Roles allowed to edit site content, media and messages. */
 export const CONTENT_ROLES: readonly UserRole[] = ['super_admin', 'admin', 'staff'];
 

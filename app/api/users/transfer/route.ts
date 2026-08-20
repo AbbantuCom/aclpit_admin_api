@@ -6,9 +6,12 @@ import { recordAudit } from '@/lib/audit';
 import type { AdminUser } from '@/types';
 
 /**
- * Moves the single super_admin role to another account. The current super admin
- * is demoted to admin in the same operation, so there is never more or less
- * than one super admin.
+ * Hands the super admin role to someone else and steps down in the same operation,
+ * leaving the number of super admins unchanged.
+ *
+ * Distinct from PATCH /api/users/:uid, which promotes or demotes one person at a
+ * time up to MAX_SUPER_ADMINS. Use this one when you are leaving and someone else
+ * is taking over; use promote when you want a second super admin alongside you.
  */
 export async function POST(req: NextRequest) {
   const auth = await requireRole(['super_admin']);
@@ -25,7 +28,7 @@ export async function POST(req: NextRequest) {
   if (!targetUid) return NextResponse.json({ error: 'targetUid is required' }, { status: 400 });
 
   if (targetUid === auth.user.uid) {
-    return NextResponse.json({ error: 'You are already the super admin.' }, { status: 400 });
+    return NextResponse.json({ error: 'You are already a super admin.' }, { status: 400 });
   }
 
   const db = await getDb();
@@ -33,6 +36,14 @@ export async function POST(req: NextRequest) {
   if (!target) return NextResponse.json({ error: 'Target user not found.' }, { status: 404 });
   if (target.status !== 'active') {
     return NextResponse.json({ error: 'That account is not active.' }, { status: 400 });
+  }
+  // Handing over to an existing super admin would just demote the caller, quietly
+  // reducing the count. Stepping down is a demotion, so say so explicitly.
+  if (target.role === 'super_admin') {
+    return NextResponse.json(
+      { error: 'That account is already a super admin. Demote yourself instead if you are stepping down.' },
+      { status: 400 }
+    );
   }
 
   await db.collection<AdminUser>('users').updateOne({ uid: auth.user.uid }, { $set: { role: 'admin' } });

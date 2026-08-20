@@ -370,16 +370,34 @@ Navigate to **Admin → Users** (`/admin/users`).
 
 ### Roles
 
-| Role | Content, media & messages | Invite members | Remove members / transfer role |
-|---|:---:|:---:|:---:|
-| **Super Admin** | ✅ | ✅ | ✅ |
-| **Admin** | ✅ | ✅ | — |
-| **Staff** | ✅ | — | — |
+| Role | Content, media & messages | Invite members | Deactivate accounts | Change roles / remove members |
+|---|:---:|:---:|:---:|:---:|
+| **Super Admin** | ✅ | ✅ | ✅ | ✅ |
+| **Admin** | ✅ | ✅ | ✅ | — |
+| **Staff** | ✅ | — | — | — |
 
-There is **exactly one Super Admin** at all times. The role is created once during
-first-time setup and can only move via **Transfer Super Admin Role**, which demotes
-the current holder to Admin in the same operation. It cannot be granted by
-invitation, and the Super Admin account cannot be deleted.
+**Up to two Super Admins** may hold the role at once (`MAX_SUPER_ADMINS` in
+`types/index.ts`), so the role is not a single point of failure — if one person is
+away or leaves, the other can still promote, demote and remove people.
+
+- **Promoting.** A Super Admin uses **Make super admin** on the Users screen. A
+  third promotion is refused with a 409 rather than silently displacing anyone.
+  The role still cannot be handed out by invitation.
+- **Demoting / stepping down.** Any Super Admin can demote another, or step down
+  themselves, via **Demote** / **Step down**. Stepping down reissues your own
+  session cookie at the new role immediately, so the old one cannot keep acting as
+  Super Admin.
+- **Transfer Super Admin Role** remains a separate one-click action for "hand over
+  *and* step down" — it promotes the target and demotes you together, leaving the
+  count unchanged. Use promotion instead when you want a second Super Admin
+  alongside you.
+- **The last one is protected.** The system refuses any change that would leave
+  zero active Super Admins — demotion, deactivation and deletion all return an
+  error telling you to promote someone else first. A *deactivated* Super Admin does
+  not count towards the cap or towards this check, since they cannot sign in.
+
+Once a second Super Admin exists, the first can be deactivated or removed like
+anyone else.
 
 Staff never see the Users screen — it is hidden from the sidebar and dashboard,
 `proxy.ts` redirects them away from `/admin/users`, and the user-management API
@@ -392,8 +410,8 @@ invitation link (valid 7 days) where the invitee chooses their own username and
 password; accepting signs them straight in. If the email fails to send, the
 invitation is still valid and the UI shows the link so it can be shared manually.
 
-Only the Super Admin can revoke pending invitations, remove members, or transfer
-the role.
+Only a Super Admin can revoke pending invitations, change roles, remove members or
+transfer the role. Admins can invite and deactivate, but not change what anyone is.
 
 ### Deactivating an account
 
@@ -408,9 +426,10 @@ outright remains Super Admin only.
 - **Nothing is lost.** The account, its authorship on saved drafts and its audit
   history all stay intact, and **Reactivate** restores access with the same password.
   Use this rather than Remove unless you genuinely want the record gone.
-- **Two guardrails.** You cannot change your own status (that would lock you out with
-  nobody obliged to undo it), and the super admin cannot be deactivated — transfer the
-  role first if that is the person leaving.
+- **Two guardrails.** You cannot deactivate your own account (that would lock you out
+  with nobody obliged to undo it), and the *last* active super admin cannot be
+  deactivated — promote someone else first. With two super admins, either one can be
+  deactivated normally.
 - Deactivated accounts are excluded from the super-admin transfer list, and any
   outstanding password-reset tokens are deleted on deactivation.
 
