@@ -20,7 +20,13 @@ export async function POST(req: NextRequest) {
   if (!body) return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
 
   const rawEmail = asString(body.email);
-  const role = (asString(body.role) ?? 'staff') as UserRole;
+
+  // Omitting the role means Staff, but *supplying* something unusable must not
+  // quietly become Staff: `asString` returns null for an object such as
+  // {"$ne": null}, and falling back would create an invitation the caller never
+  // asked for — and hide a plain typo like "administrator" just as thoroughly.
+  const roleProvided = body.role !== undefined && body.role !== null;
+  const role = (roleProvided ? asString(body.role) : 'staff') as UserRole | null;
 
   if (!rawEmail) return NextResponse.json({ error: 'Email is required.' }, { status: 400 });
 
@@ -29,7 +35,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
   }
 
-  if (!INVITABLE_ROLES.includes(role)) {
+  if (!role || !INVITABLE_ROLES.includes(role)) {
     return NextResponse.json(
       { error: 'Invitations can only be sent for the Admin or Staff role.' },
       { status: 400 }
