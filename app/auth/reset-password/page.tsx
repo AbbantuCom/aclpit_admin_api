@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AuthShell, { AuthError, AuthNotice, AuthSpinner } from '@/components/auth/AuthShell';
 import PasswordInput from '@/components/auth/PasswordInput';
+import { PASSWORD_HINT } from '@/lib/password-policy';
 
 function ResetPasswordForm() {
   const params = useSearchParams();
@@ -105,7 +106,7 @@ function ResetPasswordForm() {
               required
               value={password}
               onChange={setPassword}
-              hint="At least 10 characters, with upper and lowercase letters and a number."
+              hint={PASSWORD_HINT}
             />
             <PasswordInput
               id="confirm"

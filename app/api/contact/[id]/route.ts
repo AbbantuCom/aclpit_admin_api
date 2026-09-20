@@ -5,6 +5,11 @@ import { requireRole, authError } from '@/lib/session';
 import { recordAudit } from '@/lib/audit';
 import { CONTENT_ROLES } from '@/types';
 
+// `new ObjectId(...)` throws on anything that is not 24 hex characters, which
+// would surface as a 500 on a request that is simply malformed.
+const badId = () => NextResponse.json({ error: 'Invalid message id' }, { status: 400 });
+
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -12,8 +17,12 @@ export async function PATCH(
   const { id } = await params;
   const auth = await requireRole(CONTENT_ROLES);
   if ('failure' in auth) return authError(auth.failure);
+  if (!ObjectId.isValid(id)) return badId();
 
-  const body = await req.json();
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body !== 'object') {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
   const update: Record<string, boolean> = {};
   if ('read' in body) update.read = !!body.read;
   if ('contacted' in body) update.contacted = !!body.contacted;
@@ -36,6 +45,7 @@ export async function DELETE(
   const { id } = await params;
   const auth = await requireRole(CONTENT_ROLES);
   if ('failure' in auth) return authError(auth.failure);
+  if (!ObjectId.isValid(id)) return badId();
 
   const db = await getDb();
   // Deleted-and-returned in one step so the audit entry can name whose message it

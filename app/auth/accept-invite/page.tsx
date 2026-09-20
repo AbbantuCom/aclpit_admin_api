@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import AuthShell, { AuthError, AuthSpinner, authInputClass } from '@/components/auth/AuthShell';
 import PasswordInput from '@/components/auth/PasswordInput';
+import { PASSWORD_HINT } from '@/lib/password-policy';
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Admin',
@@ -139,7 +140,7 @@ function AcceptInviteForm() {
           required
           value={password}
           onChange={setPassword}
-          hint="At least 10 characters, with upper and lowercase letters and a number."
+          hint={PASSWORD_HINT}
         />
         <PasswordInput
           id="confirm"

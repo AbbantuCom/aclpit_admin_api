@@ -18,6 +18,7 @@ const navItems = [
   { label: 'About',           href: '/admin/about',          icon: '◉', section: 'about' },
   { label: 'Services',        href: '/admin/services',       icon: '◈', section: 'services' },
   { label: 'Practice Areas',  href: '/admin/practice-areas', icon: '⚖', section: 'practiceAreas' },
+  { label: 'Team',            href: '/admin/team',          icon: '☺', section: 'team' },
   { label: 'Publications',    href: '/admin/publications',   icon: '▤', section: 'publications' },
   { label: 'Dialogues',       href: '/admin/dialogues',      icon: '▶', section: 'dialogues' },
   { label: 'Contact',         href: '/admin/contact',        icon: '✉', section: 'contact' },

@@ -11,10 +11,18 @@ export async function POST(req: NextRequest) {
   const auth = await requireRole(CONTENT_ROLES);
   if ('failure' in auth) return authError(auth.failure);
 
-  const { filename, contentType, folder } = await req.json();
+  const body = await req.json().catch(() => null);
+  const filename = typeof body?.filename === 'string' ? body.filename : '';
+  const contentType = typeof body?.contentType === 'string' ? body.contentType : '';
+  const folder = typeof body?.folder === 'string' ? body.folder : '';
 
   if (!filename || !contentType || !folder) {
     return NextResponse.json({ error: 'filename, contentType and folder are required' }, { status: 400 });
+  }
+  // `folder` is interpolated into the object key below — anything but a plain
+  // name could presign a write outside the documents/ prefix.
+  if (!/^[a-z0-9_-]{1,40}$/i.test(folder)) {
+    return NextResponse.json({ error: 'folder must be a simple name' }, { status: 400 });
   }
   if (contentType !== 'application/pdf') {
     return NextResponse.json({ error: 'Only PDF uploads are allowed' }, { status: 400 });

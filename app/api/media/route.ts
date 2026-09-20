@@ -30,8 +30,14 @@ export async function DELETE(req: NextRequest) {
   const auth = await requireRole(CONTENT_ROLES);
   if ('failure' in auth) return authError(auth.failure);
 
-  const { key } = await req.json();
-  if (!key) return NextResponse.json({ error: 'key is required' }, { status: 400 });
+  const body = await req.json().catch(() => null);
+  const key = typeof body?.key === 'string' ? body.key.trim() : '';
+
+  // A leading slash or a ".." segment would address something outside the prefix
+  // the library lists, so a delete could reach an object the UI never showed.
+  if (!key || key.startsWith('/') || key.split('/').includes('..')) {
+    return NextResponse.json({ error: 'A valid key is required' }, { status: 400 });
+  }
 
   await deleteObject(key);
   await recordAudit({ actor: auth.user, action: 'media.delete', target: key });

@@ -146,6 +146,25 @@ export interface PracticeArea {
   order: number;
 }
 
+/**
+ * A person on the Team page.
+ *
+ * `order` is the hierarchy — the sequence leadership appears in, set by dragging
+ * rows in the admin rather than typed by hand. `featured` picks the handful shown
+ * on the home page; everyone appears on /team regardless.
+ */
+export interface TeamMember {
+  id: string;
+  name: string;
+  title: string;
+  bio: string;
+  image: string;
+  email: string;
+  linkedin: string;
+  featured: boolean;
+  order: number;
+}
+
 export interface PublicationItem {
   id: string;
   title: string;
@@ -210,6 +229,7 @@ export interface SiteContent {
     | AboutContent
     | ServiceItem[]
     | PracticeArea[]
+    | TeamMember[]
     | PublicationItem[]
     | DialogueItem[]
     | ContactContent
