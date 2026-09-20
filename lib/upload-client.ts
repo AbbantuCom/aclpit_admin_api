@@ -1,3 +1,5 @@
+import { readJsonResponse } from '@/lib/api-response';
+
 interface UploadOptions {
   file: File;
   folder: string;
@@ -13,8 +15,14 @@ function putWithProgress(url: string, file: File, contentType: string, onProgres
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 90));
     };
-    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error('Upload to storage failed')));
-    xhr.onerror = () => reject(new Error('Upload to storage failed'));
+    xhr.onload = () =>
+      xhr.status >= 200 && xhr.status < 300
+        ? resolve()
+        : // Storage answers with XML, not JSON — quote the status so a CORS or
+          // expired-signature rejection is distinguishable from a network drop.
+          reject(new Error(`Upload to storage failed (${xhr.status} ${xhr.statusText}).`));
+    xhr.onerror = () =>
+      reject(new Error('Upload to storage failed: the browser could not reach storage (network or CORS).'));
     xhr.send(file);
   });
 }
@@ -28,8 +36,10 @@ export async function uploadToR2({ file, folder, type, onProgress }: UploadOptio
     headers,
     body: JSON.stringify({ filename: file.name, contentType: file.type, folder }),
   });
-  if (!presignRes.ok) throw new Error((await presignRes.json()).error || 'Failed to start upload');
-  const { uploadUrl, key } = await presignRes.json();
+  const { uploadUrl, key } = await readJsonResponse<{ uploadUrl: string; key: string }>(
+    presignRes,
+    'Preparing the upload'
+  );
 
   await putWithProgress(uploadUrl, file, file.type, onProgress);
   onProgress?.(90);
@@ -39,8 +49,7 @@ export async function uploadToR2({ file, folder, type, onProgress }: UploadOptio
     headers,
     body: JSON.stringify({ key, type, folder }),
   });
-  if (!processRes.ok) throw new Error((await processRes.json()).error || 'Failed to process upload');
-  const { url } = await processRes.json();
+  const { url } = await readJsonResponse<{ url: string }>(processRes, 'Processing the upload');
 
   onProgress?.(100);
   return url;
