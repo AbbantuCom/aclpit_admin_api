@@ -1,3 +1,5 @@
+import { readJsonResponse } from '@/lib/api-response';
+
 interface UploadOptions {
   file: File;
   folder: string;
@@ -12,8 +14,12 @@ function putWithProgress(url: string, file: File, contentType: string, onProgres
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
     };
-    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error('Upload to storage failed')));
-    xhr.onerror = () => reject(new Error('Upload to storage failed'));
+    xhr.onload = () =>
+      xhr.status >= 200 && xhr.status < 300
+        ? resolve()
+        : reject(new Error(`Upload to storage failed (${xhr.status} ${xhr.statusText}).`));
+    xhr.onerror = () =>
+      reject(new Error('Upload to storage failed: the browser could not reach storage (network or CORS).'));
     xhr.send(file);
   });
 }
@@ -27,8 +33,10 @@ export async function uploadDocumentToR2({ file, folder, onProgress }: UploadOpt
     headers,
     body: JSON.stringify({ filename: file.name, contentType: file.type, folder }),
   });
-  if (!presignRes.ok) throw new Error((await presignRes.json()).error || 'Failed to start upload');
-  const { uploadUrl, url } = await presignRes.json();
+  const { uploadUrl, url } = await readJsonResponse<{ uploadUrl: string; url: string }>(
+    presignRes,
+    'Preparing the upload'
+  );
 
   await putWithProgress(uploadUrl, file, file.type, onProgress);
   onProgress?.(100);

@@ -1,14 +1,48 @@
-import ffmpeg from 'fluent-ffmpeg';
-import ffmpegPath from '@ffmpeg-installer/ffmpeg';
+import type FfmpegCommand from 'fluent-ffmpeg';
 import { mkdtemp, readFile, writeFile, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-ffmpeg.setFfmpegPath(ffmpegPath.path);
+/**
+ * Loads ffmpeg on first use rather than at import.
+ *
+ * `@ffmpeg-installer/ffmpeg` resolves — and verifies — a platform binary inside
+ * its module body, throwing outright when that binary is not on disk. A hosting
+ * platform that does not bundle the binary into the deployed function therefore
+ * makes merely *importing* this file fail, which takes down the whole upload
+ * route before any handler runs: the request comes back as the platform's HTML
+ * error page instead of JSON. Loading it lazily keeps that failure inside the
+ * one code path that actually needs video, where it can be caught and reported.
+ */
+let ffmpegLoader: Promise<typeof FfmpegCommand> | null = null;
+
+function loadFfmpeg(): Promise<typeof FfmpegCommand> {
+  if (!ffmpegLoader) {
+    ffmpegLoader = (async () => {
+      const [{ default: ffmpeg }, { default: ffmpegPath }] = await Promise.all([
+        import('fluent-ffmpeg'),
+        import('@ffmpeg-installer/ffmpeg'),
+      ]);
+      ffmpeg.setFfmpegPath(ffmpegPath.path);
+      return ffmpeg;
+    })().catch((err) => {
+      // Don't cache a rejected promise — a later request should retry.
+      ffmpegLoader = null;
+      throw new Error(
+        `Video processing is unavailable on this deployment: ffmpeg could not be loaded (${
+          err instanceof Error ? err.message : String(err)
+        })`
+      );
+    });
+  }
+  return ffmpegLoader;
+}
 
 const MAX_WIDTH = 1280;
 
 export async function optimizeVideo(input: Buffer): Promise<{ buffer: Buffer; contentType: string; extension: string }> {
+  const ffmpeg = await loadFfmpeg();
+
   const dir = await mkdtemp(join(tmpdir(), 'upload-'));
   const inputPath = join(dir, 'input');
   const outputPath = join(dir, 'output.mp4');
