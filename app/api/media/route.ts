@@ -3,6 +3,7 @@ import { getDb } from '@/lib/mongodb';
 import { listObjects, deleteObject, publicUrlFor } from '@/lib/r2';
 import { requireRole, authError } from '@/lib/session';
 import { recordAudit } from '@/lib/audit';
+import { isContentSection, SECTION_LABELS, type ContentSectionName } from '@/lib/content';
 import { CONTENT_ROLES } from '@/types';
 
 export async function GET() {
@@ -11,16 +12,20 @@ export async function GET() {
 
   const db = await getDb();
   const contentDocs = await db.collection('content').find({}).toArray();
-  const contentBlob = JSON.stringify(contentDocs);
+  // One string per section, so a file can say *where* it is used, not just whether.
+  const sectionBlobs = contentDocs.map((doc) => ({
+    label: isContentSection(String(doc.section)) ? SECTION_LABELS[doc.section as ContentSectionName] : String(doc.section),
+    blob: JSON.stringify(doc),
+  }));
 
   const objects = await listObjects();
   const files = objects
     .filter((o) => !o.key.startsWith('raw/'))
-    .map((o) => ({
-      ...o,
-      url: publicUrlFor(o.key),
-      inUse: contentBlob.includes(publicUrlFor(o.key)),
-    }))
+    .map((o) => {
+      const url = publicUrlFor(o.key);
+      const usedIn = sectionBlobs.filter((s) => s.blob.includes(url)).map((s) => s.label);
+      return { ...o, url, inUse: usedIn.length > 0, usedIn };
+    })
     .sort((a, b) => b.lastModified.localeCompare(a.lastModified));
 
   return NextResponse.json({ files });

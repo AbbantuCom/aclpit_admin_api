@@ -163,6 +163,12 @@ export interface TeamMember {
   linkedin: string;
   featured: boolean;
   order: number;
+  /**
+   * Whether this person appears anywhere on the public site. Optional because
+   * members saved before this switch existed have no value — those count as
+   * enabled, so adding the switch never hides anyone who was already shown.
+   */
+  enabled?: boolean;
 }
 
 export interface PublicationItem {
@@ -174,6 +180,21 @@ export interface PublicationItem {
   coverImage: string;
   date: string;
   order: number;
+  /**
+   * Whether the publication appears on the public site. Optional because items
+   * saved before this switch existed have no value — those count as enabled, so
+   * adding the switch never hides anything that was already live.
+   */
+  enabled?: boolean;
+}
+
+/**
+ * Site-wide switches, stored as the `settings` content doc. Unlike editorial
+ * sections these take effect the moment they are flipped — there is no draft.
+ */
+export interface SiteSettings {
+  /** Whether the Publications page is live and linked from the main menu. */
+  publicationsEnabled: boolean;
 }
 
 export interface DialogueItem {

@@ -37,6 +37,22 @@ export function publicUrlFor(key: string): string {
   return `${base.replace(/\/$/, '')}/${key}`;
 }
 
+/**
+ * The storage key behind one of this bucket's public URLs, or null when the URL
+ * points anywhere else (an external link, another host). Query strings and
+ * fragments are ignored; percent-escapes are decoded back to the stored key.
+ */
+export function keyForPublicUrl(url: string): string | null {
+  const base = process.env.R2_PUBLIC_URL?.replace(/\/$/, '');
+  if (!base || typeof url !== 'string' || !url.startsWith(`${base}/`)) return null;
+  try {
+    const key = decodeURIComponent(url.slice(base.length + 1).split(/[?#]/)[0]);
+    return key && !key.split('/').includes('..') ? key : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getPresignedUploadUrl(key: string, contentType: string, expiresInSeconds = 300): Promise<string> {
   const command = new PutObjectCommand({ Bucket: getBucket(), Key: key, ContentType: contentType });
   return getSignedUrl(getR2Client(), command, { expiresIn: expiresInSeconds });
