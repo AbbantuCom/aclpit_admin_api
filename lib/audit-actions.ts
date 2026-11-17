@@ -13,6 +13,7 @@ export const AUDIT_ACTIONS = {
   'content.publish_all': 'Published all pending sections',
   'content.discard': 'Discarded draft',
   'content.seed': 'Seeded default content',
+  'settings.update': 'Changed site setting',
   'media.upload': 'Uploaded media',
   'media.delete': 'Deleted media',
   'document.upload': 'Uploaded document',

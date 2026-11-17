@@ -3,6 +3,7 @@ import { getDb } from '@/lib/mongodb';
 import { requireRole, authError } from '@/lib/session';
 import { readContent, type ContentDoc } from '@/lib/content';
 import { recordAudit } from '@/lib/audit';
+import { deleteUnreferencedMedia, filesOfRemovedPublications } from '@/lib/media-cleanup';
 import { CONTENT_ROLES } from '@/types';
 
 /**
@@ -38,6 +39,11 @@ export async function POST(
   );
 
   await recordAudit({ actor: auth.user, action: 'content.discard', target: section });
+
+  // Discarding throws away publications that only ever existed in the draft.
+  if (section === 'publications') {
+    await deleteUnreferencedMedia(db, filesOfRemovedPublications(state.draft, state.published), auth.user, 'publication discarded');
+  }
 
   return NextResponse.json({ ok: true, data: state.published, hasUnpublishedChanges: false });
 }

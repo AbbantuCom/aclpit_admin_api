@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, authError } from '@/lib/session';
-import { publishSection } from '@/lib/content';
+import { publishSection, readContent } from '@/lib/content';
+import { deleteUnreferencedMedia, filesOfRemovedPublications } from '@/lib/media-cleanup';
 import { notifyClientRevalidate } from '@/lib/revalidate';
 import { recordAudit } from '@/lib/audit';
 import { CONTENT_ROLES } from '@/types';
@@ -22,6 +23,7 @@ export async function POST(
   if ('failure' in auth) return authError(auth.failure);
 
   const db = await getDb();
+  const before = section === 'publications' ? await readContent(db, section) : null;
   const result = await publishSection(db, section, auth.user.uid);
 
   if (result.status === 'empty') {
@@ -38,6 +40,11 @@ export async function POST(
 
   await notifyClientRevalidate(section);
   await recordAudit({ actor: auth.user, action: 'content.publish', target: section });
+
+  // Publications this publish took off the site no longer need their files.
+  if (before) {
+    await deleteUnreferencedMedia(db, filesOfRemovedPublications(before.published, before.draft), auth.user, 'publication deleted');
+  }
 
   return NextResponse.json({
     ok: true,

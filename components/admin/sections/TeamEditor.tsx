@@ -53,6 +53,7 @@ export default function TeamEditor() {
       linkedin: '',
       featured: false,
       order: members.length + 1,
+      enabled: true,
     };
     setMembers((ms) => [...ms, member]);
     setExpanded(member.id);
@@ -169,19 +170,41 @@ export default function TeamEditor() {
 
             <button
               onClick={() => setExpanded(expanded === member.id ? null : member.id)}
-              className="flex-1 min-w-0 text-left"
+              className={`flex-1 min-w-0 text-left ${member.enabled !== false ? '' : 'opacity-50'}`}
             >
               <p className="font-medium text-gray-800 truncate">{member.name || 'Unnamed'}</p>
               <p className="text-xs text-gray-500 truncate">{member.title || 'No title yet'}</p>
             </button>
 
             <label
-              className="flex items-center gap-2 text-xs text-gray-600 whitespace-nowrap cursor-pointer select-none"
-              title="Show this person in the home page team preview"
+              className="flex items-center gap-2 cursor-pointer select-none"
+              title={member.enabled !== false ? 'Shown on the website — click to hide' : 'Hidden from the website — click to show'}
+            >
+              <span className={`text-xs font-medium hidden sm:inline ${member.enabled !== false ? 'text-green-700' : 'text-gray-400'}`}>
+                {member.enabled !== false ? 'Enabled' : 'Disabled'}
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={member.enabled !== false}
+                aria-label={`Show ${member.name || 'this person'} on the website`}
+                onClick={() => update(member.id, { enabled: member.enabled === false })}
+                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-wine/40 ${member.enabled !== false ? 'bg-wine' : 'bg-gray-300'}`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${member.enabled !== false ? 'translate-x-4' : ''}`}
+                />
+              </button>
+            </label>
+
+            <label
+              className={`flex items-center gap-2 text-xs text-gray-600 whitespace-nowrap cursor-pointer select-none ${member.enabled !== false ? '' : 'opacity-40'}`}
+              title={member.enabled !== false ? 'Show this person in the home page team preview' : 'Hidden from the whole website while disabled'}
             >
               <input
                 type="checkbox"
                 checked={member.featured}
+                disabled={member.enabled === false}
                 onChange={(e) => update(member.id, { featured: e.target.checked })}
                 className="accent-wine w-4 h-4"
               />

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, authError } from '@/lib/session';
-import { CONTENT_SECTIONS, publishSection } from '@/lib/content';
+import { CONTENT_SECTIONS, publishSection, readContent } from '@/lib/content';
+import { deleteUnreferencedMedia, filesOfRemovedPublications } from '@/lib/media-cleanup';
 import { notifyClientRevalidate } from '@/lib/revalidate';
 import { recordAudit } from '@/lib/audit';
 import { CONTENT_ROLES } from '@/types';
@@ -19,6 +20,7 @@ export async function POST() {
 
   const db = await getDb();
   const published: string[] = [];
+  const publicationsBefore = await readContent(db, 'publications');
 
   for (const section of CONTENT_SECTIONS) {
     const result = await publishSection(db, section, auth.user.uid);
@@ -35,6 +37,16 @@ export async function POST() {
       target: `${published.length} section${published.length === 1 ? '' : 's'}`,
       details: { sections: published },
     });
+  }
+
+  // Same cleanup as the single-section publish — see lib/media-cleanup.ts.
+  if (published.includes('publications')) {
+    await deleteUnreferencedMedia(
+      db,
+      filesOfRemovedPublications(publicationsBefore.published, publicationsBefore.draft),
+      auth.user,
+      'publication deleted'
+    );
   }
 
   return NextResponse.json({ ok: true, published, publishedCount: published.length });

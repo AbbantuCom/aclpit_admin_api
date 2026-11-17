@@ -14,7 +14,9 @@ const nextConfig: NextConfig = {
     ],
   },
   // sharp and fluent-ffmpeg ship native binaries — keep them out of the webpack bundle.
-  serverExternalPackages: ['sharp', 'fluent-ffmpeg', '@ffmpeg-installer/ffmpeg'],
+  // pdfjs-dist loads its worker by a runtime import of a sibling file, and
+  // @napi-rs/canvas is a native binding — both break if bundled.
+  serverExternalPackages: ['sharp', 'fluent-ffmpeg', '@ffmpeg-installer/ffmpeg', 'pdfjs-dist', '@napi-rs/canvas'],
 
   /**
    * Ship the native libraries the upload route dlopen()s at runtime.
@@ -31,6 +33,27 @@ const nextConfig: NextConfig = {
    */
   outputFileTracingIncludes: {
     '/api/upload/process': [
+      './node_modules/@img/sharp-libvips-*/lib/**/*',
+      './node_modules/@img/sharp-linux*/lib/**/*',
+    ],
+    // The PDF cover route reads pdfjs's font, cmap and wasm files by path at
+    // runtime, and @napi-rs/canvas picks its platform binary dynamically — none
+    // of which the tracer can see.
+    '/api/documents/cover': [
+      './node_modules/pdfjs-dist/legacy/build/**/*',
+      './node_modules/pdfjs-dist/standard_fonts/**/*',
+      './node_modules/pdfjs-dist/cmaps/**/*',
+      './node_modules/pdfjs-dist/wasm/**/*',
+      './node_modules/@napi-rs/canvas*/**/*',
+      './node_modules/@img/sharp-libvips-*/lib/**/*',
+      './node_modules/@img/sharp-linux*/lib/**/*',
+    ],
+    '/api/media/thumbnail': [
+      './node_modules/pdfjs-dist/legacy/build/**/*',
+      './node_modules/pdfjs-dist/standard_fonts/**/*',
+      './node_modules/pdfjs-dist/cmaps/**/*',
+      './node_modules/pdfjs-dist/wasm/**/*',
+      './node_modules/@napi-rs/canvas*/**/*',
       './node_modules/@img/sharp-libvips-*/lib/**/*',
       './node_modules/@img/sharp-linux*/lib/**/*',
     ],

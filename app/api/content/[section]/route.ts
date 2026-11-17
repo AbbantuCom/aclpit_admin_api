@@ -5,6 +5,7 @@ import { requireRole, authError, getSessionUser } from '@/lib/session';
 import { readContent, type ContentDoc } from '@/lib/content';
 import { isValidPreviewSecret } from '@/lib/preview';
 import { recordAudit } from '@/lib/audit';
+import { deleteUnreferencedMedia, filesOfRemovedPublications } from '@/lib/media-cleanup';
 import { CONTENT_ROLES } from '@/types';
 
 export async function OPTIONS(req: NextRequest) {
@@ -19,6 +20,19 @@ export async function OPTIONS(req: NextRequest) {
 async function canReadDraft(req: NextRequest): Promise<boolean> {
   if (isValidPreviewSecret(req.headers.get('x-preview-secret'))) return true;
   return (await getSessionUser()) !== null;
+}
+
+/**
+ * Strips items an editor has switched off from the copy the public reads, so a
+ * disabled publication or team member is not merely hidden by the site but never leaves the
+ * API at all. The draft is left whole — the editor needs disabled items to be
+ * able to switch them back on.
+ */
+function toPublicView(section: string, data: unknown): unknown {
+  if ((section === 'publications' || section === 'team') && Array.isArray(data)) {
+    return data.filter((item: { enabled?: boolean }) => item?.enabled !== false);
+  }
+  return data;
 }
 
 /**
@@ -46,7 +60,7 @@ export async function GET(
   return NextResponse.json(
     {
       section,
-      data: wantsDraft ? state.draft : state.published,
+      data: wantsDraft ? state.draft : toPublicView(section, state.published),
       state: wantsDraft ? 'draft' : 'published',
       updatedAt: wantsDraft ? state.draftUpdatedAt : state.publishedAt,
       updatedBy: wantsDraft ? state.draftUpdatedBy : state.publishedBy,
@@ -74,6 +88,7 @@ export async function PUT(
   const db = await getDb();
   const body = await req.json();
   const now = new Date().toISOString();
+  const draftBefore = section === 'publications' ? (await readContent(db, section)).draft : null;
 
   await db.collection<ContentDoc>('content').updateOne(
     { section },
@@ -84,6 +99,12 @@ export async function PUT(
   const state = await readContent(db, section);
 
   await recordAudit({ actor: auth.user, action: 'content.save', target: section });
+
+  // A publication deleted before it was ever published has nothing live holding
+  // its files, so they can go now. Published ones are kept until the publish.
+  if (section === 'publications') {
+    await deleteUnreferencedMedia(db, filesOfRemovedPublications(draftBefore, body), auth.user, 'publication deleted');
+  }
 
   return NextResponse.json({
     ok: true,
