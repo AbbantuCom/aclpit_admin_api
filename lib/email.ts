@@ -30,12 +30,18 @@ interface SendResult {
  * console instead — including any action link — so invite and password-reset
  * flows remain testable without configuring a mail provider.
  */
-async function sendEmail(to: string, subject: string, html: string, devLink?: string): Promise<SendResult> {
+async function sendEmail(
+  to: string | string[],
+  subject: string,
+  html: string,
+  devLink?: string,
+  options: { replyTo?: string } = {}
+): Promise<SendResult> {
   const resend = getResend();
 
   if (!resend) {
     console.warn(
-      `\n📧 [dev] RESEND_API_KEY not set — email not sent.\n   To: ${to}\n   Subject: ${subject}` +
+      `\n📧 [dev] RESEND_API_KEY not set — email not sent.\n   To: ${[to].flat().join(', ')}\n   Subject: ${subject}` +
         (devLink ? `\n   Link: ${devLink}` : '') +
         '\n'
     );
@@ -43,7 +49,13 @@ async function sendEmail(to: string, subject: string, html: string, devLink?: st
   }
 
   try {
-    const { error } = await resend.emails.send({ from: getFromAddress(), to, subject, html });
+    const { error } = await resend.emails.send({
+      from: getFromAddress(),
+      to,
+      subject,
+      html,
+      ...(options.replyTo ? { replyTo: options.replyTo } : {}),
+    });
     if (error) {
       console.error('Resend error:', error);
       return { ok: false, error: error.message };
@@ -145,6 +157,63 @@ export async function sendWelcomeEmail(params: { to: string; displayName: string
     { label: 'Go to Admin Panel', url }
   );
   return sendEmail(params.to, 'Your ACLPIT admin account is ready', html, url);
+}
+
+/** True when a mail provider is configured — otherwise emails are only logged. */
+export function isEmailConfigured(): boolean {
+  return Boolean(process.env.RESEND_API_KEY);
+}
+
+/** Email headers can't hold line breaks; a visitor-typed subject could contain them. */
+function oneLine(value: string, max = 120): string {
+  const flat = value.replace(/[\r\n]+/g, ' ').trim();
+  return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
+}
+
+/**
+ * Tells the notification recipients that someone filled in the website's contact
+ * form. Reply-To is the visitor, so answering the email answers them directly.
+ * Every visitor-supplied value is escaped — this is text from the open internet.
+ */
+export async function sendNewMessageNotification(params: {
+  to: string[];
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+}): Promise<SendResult> {
+  const url = `${getAppUrl()}/admin/messages`;
+  const preview = params.message.length > 1200 ? `${params.message.slice(0, 1200)}…` : params.message;
+  const row = (label: string, value: string) =>
+    `<tr><td style="padding:4px 12px 4px 0;color:#6B5A64;white-space:nowrap;vertical-align:top;">${label}</td>` +
+    `<td style="padding:4px 0;color:#241521;">${value}</td></tr>`;
+
+  const html = layout(
+    'New message from the website',
+    `<p>Someone has sent a message through the contact form on the ACLPIT website.</p>
+     <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px;margin:8px 0 16px;">
+       ${row('From', escapeHtml(params.name))}
+       ${row('Email', `<a href="mailto:${escapeHtml(params.email)}" style="color:${WINE};">${escapeHtml(params.email)}</a>`)}
+       ${row('Subject', escapeHtml(params.subject))}
+     </table>
+     <div style="background:#FAF6EF;border-left:3px solid ${WINE};padding:12px 16px;white-space:pre-wrap;color:#241521;">${escapeHtml(preview)}</div>
+     <p style="margin-top:16px;">You can reply to this email to answer ${escapeHtml(params.name)} directly, or open the dashboard to manage the message.</p>`,
+    { label: 'View in Dashboard', url }
+  );
+  return sendEmail(params.to, `New website message: ${oneLine(params.subject)}`, html, url, { replyTo: params.email });
+}
+
+/** Confirms to the recipients that message notifications reach them. */
+export async function sendNotificationTestEmail(params: { to: string[]; requestedBy: string }): Promise<SendResult> {
+  const url = `${getAppUrl()}/admin/messages`;
+  const html = layout(
+    'Notifications are working',
+    `<p>This is a test sent by <strong>${escapeHtml(params.requestedBy)}</strong> from the ACLPIT admin panel.</p>
+     <p>From now on, this address will receive an email whenever someone sends a message through the
+     contact form on the website.</p>`,
+    { label: 'Open Messages', url }
+  );
+  return sendEmail(params.to, 'Test: ACLPIT message notifications', html, url);
 }
 
 function escapeHtml(value: string): string {

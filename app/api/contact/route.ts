@@ -1,9 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { getDb } from '@/lib/mongodb';
 import { corsHeaders, corsPreflight } from '@/lib/cors';
 import { requireRole, authError } from '@/lib/session';
 import { recordAudit } from '@/lib/audit';
 import { asBoundedString, isValidEmail, normalizeEmail } from '@/lib/validation';
+import { sendNewMessageNotification } from '@/lib/email';
+import { getContactRecipients } from '@/lib/notifications';
 import { CONTENT_ROLES } from '@/types';
 
 export async function OPTIONS(req: NextRequest) {
@@ -50,6 +52,20 @@ export async function POST(req: NextRequest) {
     createdAt: new Date().toISOString(),
     read: false,
     contacted: false,
+  });
+
+  // Email the people set up on the Messages page. Runs after the response is
+  // sent, so the visitor never waits on (or sees an error from) the mail provider
+  // — the message is already saved and visible in the dashboard either way.
+  after(async () => {
+    try {
+      const recipients = await getContactRecipients(db);
+      if (recipients.length === 0) return;
+      const result = await sendNewMessageNotification({ to: recipients, name, email, subject, message });
+      if (!result.ok) console.warn('Contact notification email failed:', result.error);
+    } catch (err) {
+      console.warn('Contact notification email failed:', err);
+    }
   });
 
   return NextResponse.json({ ok: true }, { headers });
