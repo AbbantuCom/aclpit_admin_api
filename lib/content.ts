@@ -157,7 +157,7 @@ export function isContentSection(value: string): value is ContentSectionName {
 export const SECTION_LABELS: Record<ContentSectionName, string> = {
   hero: 'Hero',
   about: 'About',
-  services: 'Services',
+  services: 'What We Do',
   practiceAreas: 'Practice Areas',
   team: 'Team',
   publications: 'Publications',

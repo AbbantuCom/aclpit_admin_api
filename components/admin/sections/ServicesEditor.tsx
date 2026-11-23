@@ -50,7 +50,7 @@ export default function ServicesEditor() {
       id: `svc-${Date.now()}`,
       anchor: '',
       icon: 'bi-star',
-      title: 'New Service',
+      title: 'New Item',
       description: '',
       bullets: [],
       image: '',
@@ -62,7 +62,7 @@ export default function ServicesEditor() {
   }
 
   function removeCard(id: string) {
-    if (!confirm('Delete this service card?')) return;
+    if (!confirm('Delete this card?')) return;
     setCards((cs) => cs.filter((c) => c.id !== id));
   }
 
@@ -80,7 +80,7 @@ export default function ServicesEditor() {
     <div className="space-y-4">
       <div className="flex justify-end">
         <button onClick={addCard} className="bg-wine text-white text-sm px-4 py-2 rounded-xl hover:bg-wine-dark transition-colors">
-          + Add Service
+          + Add Item
         </button>
       </div>
 
@@ -92,7 +92,7 @@ export default function ServicesEditor() {
               <button onClick={(e) => { e.stopPropagation(); moveCard(card.id, 1); }} className="text-gray-400 hover:text-gray-600 text-xs leading-none">▼</button>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-gray-800 truncate">{card.title || 'Untitled Service'}</p>
+              <p className="font-medium text-gray-800 truncate">{card.title || 'Untitled'}</p>
               <p className="text-xs text-gray-500 truncate">{card.description.slice(0, 60)}{card.description.length > 60 ? '…' : ''}</p>
             </div>
             <button onClick={(e) => { e.stopPropagation(); removeCard(card.id); }} className="text-red-400 hover:text-red-600 text-sm px-2">✕</button>

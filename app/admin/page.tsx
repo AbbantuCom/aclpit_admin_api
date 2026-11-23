@@ -9,7 +9,7 @@ import { USER_MANAGEMENT_ROLES } from '@/types';
 const sections = [
   { label: 'Hero',           href: '/admin/hero',           desc: 'Kicker, title, description, CTA buttons, hero image' },
   { label: 'About',          href: '/admin/about',          desc: 'Background, vision, mission, objectives, governance, stakeholders' },
-  { label: 'Services',       href: '/admin/services',       desc: 'Service cards with icons, descriptions and bullet points' },
+  { label: 'What We Do',     href: '/admin/services',       desc: 'Cards with icons, descriptions and bullet points' },
   { label: 'Practice Areas', href: '/admin/practice-areas', desc: 'The six thematic pillars of the Centre’s work' },
   { label: 'Publications',   href: '/admin/publications',   desc: 'Research reports, policy briefs and commentary' },
   { label: 'Dialogues',      href: '/admin/dialogues',      desc: 'Legal Tech Dialogues video series entries' },

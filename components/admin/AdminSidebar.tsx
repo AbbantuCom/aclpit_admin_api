@@ -16,7 +16,7 @@ const navItems = [
   { label: 'Pending Changes', href: '/admin/pending',        icon: '◔' },
   { label: 'Hero',            href: '/admin/hero',           icon: '▶', section: 'hero' },
   { label: 'About',           href: '/admin/about',          icon: '◉', section: 'about' },
-  { label: 'Services',        href: '/admin/services',       icon: '◈', section: 'services' },
+  { label: 'What We Do',      href: '/admin/services',       icon: '◈', section: 'services' },
   { label: 'Practice Areas',  href: '/admin/practice-areas', icon: '⚖', section: 'practiceAreas' },
   { label: 'Team',            href: '/admin/team',          icon: '☺', section: 'team' },
   { label: 'Publications',    href: '/admin/publications',   icon: '▤', section: 'publications' },
