@@ -195,6 +195,8 @@ export interface PublicationItem {
 export interface SiteSettings {
   /** Whether the Publications page is live and linked from the main menu. */
   publicationsEnabled: boolean;
+  /** Whether the Legal Tech Dialogues page is live and linked from the main menu. */
+  dialoguesEnabled: boolean;
 }
 
 export interface DialogueItem {
