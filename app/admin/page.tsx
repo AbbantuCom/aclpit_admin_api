@@ -8,7 +8,7 @@ import { USER_MANAGEMENT_ROLES } from '@/types';
 
 const sections = [
   { label: 'Hero',           href: '/admin/hero',           desc: 'Kicker, title, description, CTA buttons, hero image' },
-  { label: 'About',          href: '/admin/about',          desc: 'Background, vision, mission, objectives, governance, stakeholders' },
+  { label: 'About',          href: '/admin/about',          desc: 'Company profile PDF, background, vision, mission, objectives, governance' },
   { label: 'What We Do',     href: '/admin/services',       desc: 'Cards with icons, descriptions and bullet points' },
   { label: 'Practice Areas', href: '/admin/practice-areas', desc: 'The six thematic pillars of the Centre’s work' },
   { label: 'News & Events',  href: '/admin/publications',   desc: 'News, events and newsletters' },

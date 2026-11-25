@@ -122,6 +122,12 @@ export interface AboutContent {
   governanceImage: string;
 
   stakeholders: AboutStakeholder[];
+
+  /**
+   * The company profile PDF. The About page shows its "Download Company
+   * Profile" button only when this is set; empty or missing means no button.
+   */
+  companyProfileUrl?: string;
 }
 
 export interface ServiceItem {
