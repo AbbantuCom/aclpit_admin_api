@@ -6,7 +6,7 @@ import type { SiteSettings } from '@/types';
 interface Props {
   /** Which site setting this switch flips. */
   setting: keyof SiteSettings;
-  /** The section's name as visitors see it, e.g. "Publications". */
+  /** The section's name as visitors see it, e.g. "News & Events". */
   label: string;
 }
 

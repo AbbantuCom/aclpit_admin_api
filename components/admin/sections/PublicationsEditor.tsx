@@ -9,7 +9,7 @@ import { useContentSave } from '../useContentSave';
 import { useSectionContent } from '../useSectionContent';
 import { defaultPublications } from '@/lib/seed-data';
 import { readJsonResponse } from '@/lib/api-response';
-import type { PublicationItem } from '@/types';
+import { NEWS_CATEGORIES, NEWS_CATEGORY_LABELS, newsCategoryOf, type NewsCategory, type PublicationItem } from '@/types';
 
 const inputClass =
   'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-wine focus:ring-2 focus:ring-wine/15';
@@ -20,7 +20,7 @@ export default function PublicationsEditor() {
   const { save, ...workflow } = useContentSave('publications');
   const [expanded, setExpanded] = useState<string | null>(null);
   const [covers, setCovers] = useState<Record<string, { busy: boolean; error?: string }>>({});
-  /** The publication whose "use your own cover image" picker is open, if any. */
+  /** The item whose "use your own cover image" picker is open, if any. */
   const [customCoverFor, setCustomCoverFor] = useState<string | null>(null);
 
   useEffect(() => {
@@ -54,9 +54,10 @@ export default function PublicationsEditor() {
   function addItem() {
     const newItem: PublicationItem = {
       id: `pub-${Date.now()}`,
-      title: 'New Publication',
+      title: 'New Item',
       description: '',
-      category: 'Policy Brief',
+      newsCategory: 'news',
+      category: '',
       fileUrl: '',
       coverImage: '',
       date: '',
@@ -72,8 +73,8 @@ export default function PublicationsEditor() {
     if (!item) return;
     const hasFiles = Boolean(item.fileUrl || item.coverImage);
     const message = hasFiles
-      ? 'Delete this publication?\n\nIts PDF and cover image will also be deleted from the Media Library once the publication is off the website (after you save and publish).'
-      : 'Delete this publication?';
+      ? 'Delete this item?\n\nIts PDF and cover image will also be deleted from the Media Library once the item is off the website (after you save and publish).'
+      : 'Delete this item?';
     if (!confirm(message)) return;
 
     setItems((it) => it.filter((i) => i.id !== id));
@@ -109,7 +110,7 @@ export default function PublicationsEditor() {
     <div className="space-y-4">
       <div className="flex justify-end">
         <button onClick={addItem} className="bg-wine text-white text-sm px-4 py-2 rounded-xl hover:bg-wine-dark transition-colors">
-          + Add Publication
+          + Add News / Event / Newsletter
         </button>
       </div>
 
@@ -123,8 +124,13 @@ export default function PublicationsEditor() {
               <button onClick={(e) => { e.stopPropagation(); moveItem(item.id, 1); }} className="text-gray-400 hover:text-gray-600 text-xs leading-none">▼</button>
             </div>
             <div className={`flex-1 min-w-0 ${enabled ? '' : 'opacity-50'}`}>
-              <p className="font-medium text-gray-800 truncate">{item.title || 'Untitled Publication'}</p>
-              <p className="text-xs text-gray-500 truncate">{item.category}{item.date ? ` · ${item.date}` : ''}</p>
+              <p className="font-medium text-gray-800 truncate">{item.title || 'Untitled'}</p>
+              <p className="text-xs text-gray-500 truncate">
+                <span className="inline-block rounded-full bg-wine/10 text-wine font-medium px-2 py-0.5 mr-1.5">
+                  {NEWS_CATEGORY_LABELS[newsCategoryOf(item)]}
+                </span>
+                {item.category}{item.date ? `${item.category ? ' · ' : ''}${item.date}` : ''}
+              </p>
             </div>
             <label
               className="flex items-center gap-2 cursor-pointer select-none"
@@ -138,7 +144,7 @@ export default function PublicationsEditor() {
                 type="button"
                 role="switch"
                 aria-checked={enabled}
-                aria-label={`Show "${item.title || 'Untitled Publication'}" on the public site`}
+                aria-label={`Show "${item.title || 'Untitled'}" on the public site`}
                 onClick={() => update(item.id, { enabled: !enabled })}
                 className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-wine/40 ${enabled ? 'bg-wine' : 'bg-gray-300'}`}
               >
@@ -162,10 +168,23 @@ export default function PublicationsEditor() {
                 <textarea value={item.description} onChange={(e) => update(item.id, { description: e.target.value })} rows={4}
                   className={`${inputClass} resize-none`} />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <select
+                  value={newsCategoryOf(item)}
+                  onChange={(e) => update(item.id, { newsCategory: e.target.value as NewsCategory })}
+                  className={inputClass}
+                >
+                  {NEWS_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{NEWS_CATEGORY_LABELS[c]}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Decides which page it appears on: News, Events or Newsletter.</p>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                  <input placeholder="Policy Brief" value={item.category} onChange={(e) => update(item.id, { category: e.target.value })} className={inputClass} />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tag <span className="font-normal text-gray-400">(optional, shown on the card)</span></label>
+                  <input placeholder="e.g. Policy Brief, Workshop" value={item.category} onChange={(e) => update(item.id, { category: e.target.value })} className={inputClass} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
@@ -221,7 +240,7 @@ export default function PublicationsEditor() {
                         {covers[item.id]?.busy
                           ? 'Making the cover from the first page of the PDF…'
                           : item.coverImage
-                            ? 'Shown on this publication’s card on the website.'
+                            ? 'Shown on this item’s card on the website.'
                             : item.fileUrl
                               ? 'Use the first page of the PDF as the cover, or choose your own image.'
                               : 'Add the PDF above — its first page becomes the cover automatically.'}

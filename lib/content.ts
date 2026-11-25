@@ -160,7 +160,7 @@ export const SECTION_LABELS: Record<ContentSectionName, string> = {
   services: 'What We Do',
   practiceAreas: 'Practice Areas',
   team: 'Team',
-  publications: 'Publications',
+  publications: 'News & Events',
   dialogues: 'Dialogues',
   contact: 'Contact',
   footer: 'Footer',
