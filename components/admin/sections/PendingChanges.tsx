@@ -11,7 +11,7 @@ const SECTION_ROUTES: Record<string, string> = {
   hero: '/admin/hero',
   about: '/admin/about',
   services: '/admin/services',
-  practiceAreas: '/admin/practice-areas',
+  practiceAreas: '/admin/programs',
   publications: '/admin/publications',
   dialogues: '/admin/dialogues',
   contact: '/admin/contact',

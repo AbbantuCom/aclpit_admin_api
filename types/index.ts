@@ -226,6 +226,13 @@ export interface SiteSettings {
   publicationsEnabled: boolean;
   /** Whether the Legal Tech Dialogues page is live and linked from the main menu. */
   dialoguesEnabled: boolean;
+  /**
+   * Whether the Services page shows each item's image beside it. Off — or no
+   * item has an image — lays the items out as icon cards, like Programs.
+   * Optional because settings saved before this switch existed have no value;
+   * those count as on, which is how the page looked then.
+   */
+  servicesImagesEnabled?: boolean;
 }
 
 export interface DialogueItem {

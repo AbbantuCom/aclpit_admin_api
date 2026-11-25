@@ -52,7 +52,7 @@ aclpit_admin_api/
 │   │   ├── hero/
 │   │   ├── about/
 │   │   ├── services/
-│   │   ├── practice-areas/
+│   │   ├── programs/
 │   │   ├── publications/
 │   │   ├── dialogues/
 │   │   ├── contact/
@@ -112,7 +112,7 @@ The content API stores one document per section in the `content` MongoDB collect
 | `hero` | object | Kicker, title + highlighted phrase, description, CTA buttons, hero image, vision badge |
 | `about` | object | Home preview text/image, background & rationale, vision & mission, objectives, governance, stakeholders |
 | `services` | array | Service cards — icon, anchor, title, description, bullet points, image |
-| `practiceAreas` | array | The Centre's six practice-area pillars — icon, anchor, title, description, bullet points |
+| `practiceAreas` | array | The Centre's six programs (shown as Programs) — icon, anchor, title, description, bullet points |
 | `publications` | array | Research reports / policy briefs — title, description, category, PDF file URL, cover image, date |
 | `dialogues` | array | Legal Tech Dialogues video entries — YouTube URL, title, description, category |
 | `contact` | object | Section text, email, phone, address, postal address, office hours, map embed URL, socials, enquiry topics |
@@ -278,7 +278,7 @@ link that is valid for one hour and can only be used once.
 site keeps serving the last published version until you press **Publish**. See
 [Draft, Preview & Publish](#draft-preview--publish) below.
 
-Card-list sections (**Services**, **Practice Areas**, **Publications**, **Dialogues**) support add / remove / reorder — use the **▲ / ▼** arrows to move a card up or down, then **Save Draft** to persist the new order.
+Card-list sections (**Services**, **Programs**, **News & Events**, **Dialogues**) support add / remove / reorder — use the **▲ / ▼** arrows to move a card up or down, then **Save Draft** to persist the new order.
 
 ---
 

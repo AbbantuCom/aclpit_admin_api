@@ -3,6 +3,12 @@ import type { NextConfig } from 'next';
 const r2PublicHostname = process.env.R2_PUBLIC_URL ? new URL(process.env.R2_PUBLIC_URL).hostname : undefined;
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      // Practice Areas were renamed Programs.
+      { source: '/admin/practice-areas', destination: '/admin/programs', permanent: true },
+    ];
+  },
   images: {
     remotePatterns: [
       // Kept for any content still pointing at pre-migration Firebase Storage URLs.
