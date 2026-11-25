@@ -278,7 +278,7 @@ link that is valid for one hour and can only be used once.
 site keeps serving the last published version until you press **Publish**. See
 [Draft, Preview & Publish](#draft-preview--publish) below.
 
-Card-list sections (**Services**, **Programs**, **News & Events**, **Dialogues**) support add / remove / reorder — use the **▲ / ▼** arrows to move a card up or down, then **Save Draft** to persist the new order.
+Card-list sections (**Services**, **Programs**, **Resources**, **Dialogues**) support add / remove / reorder — use the **▲ / ▼** arrows to move a card up or down, then **Save Draft** to persist the new order.
 
 ---
 

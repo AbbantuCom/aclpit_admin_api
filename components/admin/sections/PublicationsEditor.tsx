@@ -110,7 +110,7 @@ export default function PublicationsEditor() {
     <div className="space-y-4">
       <div className="flex justify-end">
         <button onClick={addItem} className="bg-wine text-white text-sm px-4 py-2 rounded-xl hover:bg-wine-dark transition-colors">
-          + Add News / Event / Newsletter
+          + Add Resource
         </button>
       </div>
 
@@ -179,7 +179,7 @@ export default function PublicationsEditor() {
                     <option key={c} value={c}>{NEWS_CATEGORY_LABELS[c]}</option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">Decides which page it appears on: News, Events or Newsletter.</p>
+                <p className="text-xs text-gray-500 mt-1">Decides which tab it appears under on the Publications page — Research also appears in the Resources menu. Every item is listed under “All”.</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

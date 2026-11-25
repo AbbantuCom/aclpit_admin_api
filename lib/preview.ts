@@ -60,7 +60,7 @@ export const SECTION_PREVIEW_PATHS: Record<ContentSectionName, string> = {
   services: '/services',
   practiceAreas: '/programs',
   team: '/about#our-team',
-  publications: '/news-and-events',
+  publications: '/resources',
   dialogues: '/dialogues',
   contact: '/#contact',
   footer: '/',
