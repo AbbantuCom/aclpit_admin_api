@@ -11,7 +11,7 @@ const sections = [
   { label: 'About',          href: '/admin/about',          desc: 'Company profile PDF, background, vision, mission, objectives, governance' },
   { label: 'Services',       href: '/admin/services',       desc: 'Cards with icons, descriptions and bullet points' },
   { label: 'Programs',       href: '/admin/programs',       desc: 'The six thematic programs of the Centre’s work' },
-  { label: 'News & Events',  href: '/admin/publications',   desc: 'News, events and newsletters' },
+  { label: 'Resources',      href: '/admin/publications',   desc: 'Research, publications, news, events and newsletters' },
   { label: 'Dialogues',      href: '/admin/dialogues',      desc: 'Legal Tech Dialogues video series entries' },
   { label: 'Contact',        href: '/admin/contact',        desc: 'Contact info, office hours, map, socials' },
   { label: 'Users',          href: '/admin/users',          desc: 'Manage members, invite, transfer role', requiresUserManagement: true },

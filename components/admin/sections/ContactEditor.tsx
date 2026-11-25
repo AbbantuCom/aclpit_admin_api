@@ -6,7 +6,7 @@ import SectionLoading from '../SectionLoading';
 import { useContentSave } from '../useContentSave';
 import { useSectionContent } from '../useSectionContent';
 import { defaultContact } from '@/lib/seed-data';
-import type { ContactContent, ContactSocials } from '@/types';
+import { SOCIAL_PLATFORMS, type ContactContent, type ContactSocials } from '@/types';
 
 const inputClass =
   'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-wine focus:ring-2 focus:ring-wine/15';
@@ -56,13 +56,6 @@ export default function ContactEditor() {
     { key: 'mapEmbedUrl', label: 'Google Maps Embed URL' },
   ];
 
-  const socialFields: Array<{ key: keyof ContactSocials; label: string }> = [
-    { key: 'linkedin', label: 'LinkedIn URL' },
-    { key: 'twitter', label: 'X (Twitter) URL' },
-    { key: 'youtube', label: 'YouTube URL' },
-    { key: 'facebook', label: 'Facebook URL' },
-  ];
-
   if (isLoading) return <SectionLoading />;
 
   return (
@@ -92,13 +85,44 @@ export default function ContactEditor() {
       </div>
 
       <div className="bg-white rounded-2xl p-6 shadow-sm space-y-5">
-        <h2 className="font-semibold text-gray-800 border-b pb-3">Social Links</h2>
-        {socialFields.map(({ key, label }) => (
-          <div key={key}>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-            <input value={data.socials[key]} onChange={(e) => setSocial(key, e.target.value)} className={inputClass} />
-          </div>
-        ))}
+        <div className="border-b pb-3">
+          <h2 className="font-semibold text-gray-800">Social Links</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Paste a link for each account you have. Only platforms with a link show their icon on the website — in
+            the footer and the Contact section. Leave the rest empty.
+          </p>
+        </div>
+        {SOCIAL_PLATFORMS.map(({ key, label, icon, placeholder }) => {
+          const value = data.socials?.[key] ?? '';
+          const shown = value.trim() !== '';
+          return (
+            <div key={key}>
+              <label htmlFor={`social-${key}`} className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+                <span
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-sm ${
+                    shown ? 'bg-wine text-white' : 'bg-gray-100 text-gray-400'
+                  }`}
+                  aria-hidden="true"
+                >
+                  <i className={`bi ${icon}`} />
+                </span>
+                {label}
+                <span className={`ms-auto text-xs font-normal ${shown ? 'text-green-700' : 'text-gray-400'}`}>
+                  {shown ? 'Shown on website' : 'Not shown'}
+                </span>
+              </label>
+              <input
+                id={`social-${key}`}
+                type="url"
+                inputMode="url"
+                placeholder={placeholder}
+                value={value}
+                onChange={(e) => setSocial(key, e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          );
+        })}
       </div>
 
       <div className="bg-white rounded-2xl p-6 shadow-sm space-y-4">
