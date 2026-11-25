@@ -356,6 +356,7 @@ export const defaultTeam: TeamMember[] = [
 export const defaultPublications: PublicationItem[] = [
   {
     id: 'pub-borderless-identity',
+    newsCategory: 'news',
     title: 'Borderless Identity',
     description:
       'This document examines the AfCFTA Digital Trade Protocol, focusing on implementation gaps in cross-border digital identity systems. It highlights challenges regarding mutual recognition, technical standardization, and KYC baselines, recommending mandatory continental assurance standards, trusted identity list criteria, and unified security incident management response frameworks.',
@@ -367,6 +368,7 @@ export const defaultPublications: PublicationItem[] = [
   },
   {
     id: 'pub-e-discovery',
+    newsCategory: 'news',
     title: 'E-Discovery and Litigation',
     description:
       'This overview explores electronic discovery and evidence in litigation, explaining electronically stored information, admissibility, and judicial reliability factors. It outlines the seven-stage EDRM framework, addresses data protection balancing under Ugandan law, and emphasizes proportional application to prevent disproportionate financial burdens on smaller individual court litigants.',
@@ -378,6 +380,7 @@ export const defaultPublications: PublicationItem[] = [
   },
   {
     id: 'pub-ip-financial-innovators',
+    newsCategory: 'news',
     title: 'Intellectual Property Protection for Financial Innovators',
     description:
       "Analyzing Kenya's landmark copyright judgment against Safaricom, this article discusses intellectual property protection for African fintech innovators. It outlines core IP categories, demonstrates how copyright protects specific product expressions rather than raw ideas, and urges Ugandan founders to thoroughly document and legalise software innovations early.",

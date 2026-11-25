@@ -171,10 +171,33 @@ export interface TeamMember {
   enabled?: boolean;
 }
 
+/** The three kinds of News & Events entry; each has its own page on the site. */
+export const NEWS_CATEGORIES = ['news', 'events', 'newsletter'] as const;
+export type NewsCategory = (typeof NEWS_CATEGORIES)[number];
+export const NEWS_CATEGORY_LABELS: Record<NewsCategory, string> = {
+  news: 'News',
+  events: 'Events',
+  newsletter: 'Newsletter',
+};
+
+/**
+ * The category an entry is filed under. Entries saved before categories
+ * existed have none — those count as News, so nothing already live vanishes.
+ */
+export function newsCategoryOf(item: { newsCategory?: string }): NewsCategory {
+  return (NEWS_CATEGORIES as readonly string[]).includes(item.newsCategory ?? '')
+    ? (item.newsCategory as NewsCategory)
+    : 'news';
+}
+
+/** A News & Events entry (stored under the `publications` content section). */
 export interface PublicationItem {
   id: string;
   title: string;
   description: string;
+  /** News, Events or Newsletter — decides which page of the site lists it. */
+  newsCategory?: NewsCategory;
+  /** Free-text tag shown on the card, e.g. "Policy Brief". */
   category: string;
   fileUrl: string;
   coverImage: string;
@@ -193,7 +216,7 @@ export interface PublicationItem {
  * sections these take effect the moment they are flipped — there is no draft.
  */
 export interface SiteSettings {
-  /** Whether the Publications page is live and linked from the main menu. */
+  /** Whether the News & Events pages are live and linked from the main menu. */
   publicationsEnabled: boolean;
   /** Whether the Legal Tech Dialogues page is live and linked from the main menu. */
   dialoguesEnabled: boolean;
