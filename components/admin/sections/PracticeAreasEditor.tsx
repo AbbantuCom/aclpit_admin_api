@@ -7,6 +7,7 @@ import { useContentSave } from '../useContentSave';
 import { useSectionContent } from '../useSectionContent';
 import { defaultPracticeAreas } from '@/lib/seed-data';
 import type { PracticeArea } from '@/types';
+import IconPicker from '../IconPicker';
 
 const inputClass =
   'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-wine focus:ring-2 focus:ring-wine/15';
@@ -104,8 +105,8 @@ export default function PracticeAreasEditor() {
                   <input value={card.title} onChange={(e) => update(card.id, { title: e.target.value })} className={inputClass} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Icon (Bootstrap Icons class)</label>
-                  <input placeholder="bi-shield-lock" value={card.icon} onChange={(e) => update(card.id, { icon: e.target.value })} className={inputClass} />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Icon</label>
+                  <IconPicker value={card.icon} onChange={(icon) => update(card.id, { icon })} />
                 </div>
               </div>
               <div>

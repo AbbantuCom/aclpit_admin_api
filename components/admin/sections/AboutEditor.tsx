@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import ImageUpload from '../ImageUpload';
+import DocumentUpload from '../DocumentUpload';
+import IconPicker from '../IconPicker';
 import SaveBar from '../SaveBar';
 import SectionLoading from '../SectionLoading';
 import { useContentSave } from '../useContentSave';
@@ -93,11 +95,9 @@ export default function AboutEditor() {
         </div>
         {list.map((entry, i) => (
           <div key={i} className="grid grid-cols-[1fr_1fr_2fr_auto] gap-3 items-start">
-            <input
-              placeholder="Icon (e.g. bi-search)"
+            <IconPicker
               value={entry.icon}
-              onChange={(e) => setEntry<AboutObjective | AboutStakeholder>(key, i, 'icon', e.target.value)}
-              className={inputClass}
+              onChange={(icon) => setEntry<AboutObjective | AboutStakeholder>(key, i, 'icon', icon)}
             />
             <input
               placeholder="Title"
@@ -122,6 +122,20 @@ export default function AboutEditor() {
 
   return (
     <div className="space-y-8">
+      <div className="bg-white rounded-2xl p-6 shadow-sm space-y-4">
+        <h2 className="font-semibold text-gray-800 border-b pb-3">Company Profile</h2>
+        <p className="text-sm text-gray-500">
+          Upload the company profile PDF and a “Download Company Profile” button appears at the top of the
+          About page. While no PDF is set, the button is hidden.
+        </p>
+        <DocumentUpload
+          value={data.companyProfileUrl ?? ''}
+          onChange={(url) => set('companyProfileUrl', url)}
+          folder="about"
+          label="Company Profile PDF — upload it, or paste a link to it"
+        />
+      </div>
+
       <div className="bg-white rounded-2xl p-6 shadow-sm space-y-5">
         <h2 className="font-semibold text-gray-800 border-b pb-3">Home Preview</h2>
         {textField('Eyebrow', 'eyebrow')}
