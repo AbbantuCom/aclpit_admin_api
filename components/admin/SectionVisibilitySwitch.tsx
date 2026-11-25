@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { SiteSettings } from '@/types';
+import type { BooleanSettingKey, SiteSettings } from '@/types';
 
 interface Props {
   /** Which site setting this switch flips. */
-  setting: keyof SiteSettings;
+  setting: BooleanSettingKey;
   /** The section's name as visitors see it, e.g. "Resources". */
   label: string;
   /** Overrides for switches that do something other than show a section. */

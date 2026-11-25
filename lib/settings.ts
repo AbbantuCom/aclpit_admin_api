@@ -1,4 +1,4 @@
-import type { SiteSettings } from '@/types';
+import { DEFAULT_SHARE_PLATFORMS, sharePlatformsOf, type BooleanSettingKey, type SiteSettings } from '@/types';
 
 /** The `content` doc the switches live in — read by the public site like any section. */
 export const SETTINGS_SECTION = 'settings';
@@ -14,10 +14,15 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   dialoguesEnabled: false,
   // On by default: the Services page was designed around its images.
   servicesImagesEnabled: true,
+  // Sharing starts off, like the other new features, until someone turns it on.
+  publicationSharingEnabled: false,
+  publicationSharePlatforms: [...DEFAULT_SHARE_PLATFORMS],
 };
 
-/** The switch names PUT /api/settings accepts. */
-export const SETTING_KEYS = Object.keys(DEFAULT_SITE_SETTINGS) as (keyof SiteSettings)[];
+/** The on/off switch names PUT /api/settings accepts. */
+export const SETTING_KEYS = (Object.keys(DEFAULT_SITE_SETTINGS) as (keyof SiteSettings)[]).filter(
+  (k): k is BooleanSettingKey => k !== 'publicationSharePlatforms'
+);
 
 /** Fills in any switch missing from a stored doc, so older docs read cleanly. */
 export function withDefaults(stored: unknown): SiteSettings {
@@ -26,5 +31,6 @@ export function withDefaults(stored: unknown): SiteSettings {
   for (const key of SETTING_KEYS) {
     if (typeof s[key] === 'boolean') out[key] = s[key];
   }
+  out.publicationSharePlatforms = sharePlatformsOf(s.publicationSharePlatforms);
   return out;
 }
