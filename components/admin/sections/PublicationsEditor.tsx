@@ -179,7 +179,7 @@ export default function PublicationsEditor() {
                     <option key={c} value={c}>{NEWS_CATEGORY_LABELS[c]}</option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">Decides which tab it appears under on the Publications page — Research also appears in the Resources menu. Every item is listed under “All”.</p>
+                <p className="text-xs text-gray-500 mt-1">Decides which tab of the Publications page, and which entry of the Resources menu, lists it. Every item is also listed under “All”.</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

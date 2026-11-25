@@ -5,7 +5,7 @@ import { readContent, type ContentDoc } from '@/lib/content';
 import { notifyClientRevalidate } from '@/lib/revalidate';
 import { recordAudit } from '@/lib/audit';
 import { SETTINGS_SECTION, SETTING_KEYS, withDefaults } from '@/lib/settings';
-import { CONTENT_ROLES, type SiteSettings } from '@/types';
+import { CONTENT_ROLES, sharePlatformsOf, type SiteSettings } from '@/types';
 
 /** GET /api/settings → the current switches, with defaults filled in. */
 export async function GET() {
@@ -18,7 +18,7 @@ export async function GET() {
 }
 
 /**
- * PUT /api/settings  { publicationsEnabled?: boolean, dialoguesEnabled?: boolean }
+ * PUT /api/settings  { <switch>?: boolean, publicationSharePlatforms?: string[] }
  *
  * Flips site-wide switches. Unlike content sections there is no draft: a switch
  * is the publish action, so it writes draft and published together and pings the
@@ -35,10 +35,14 @@ export async function PUT(req: NextRequest) {
     for (const key of SETTING_KEYS) {
       if (typeof body[key] === 'boolean') changes[key] = body[key];
     }
+    // Unknown platform names are dropped rather than rejected.
+    if (Array.isArray(body.publicationSharePlatforms)) {
+      changes.publicationSharePlatforms = sharePlatformsOf(body.publicationSharePlatforms);
+    }
   }
   if (Object.keys(changes).length === 0) {
     return NextResponse.json(
-      { error: `At least one of ${SETTING_KEYS.join(', ')} (boolean) is required` },
+      { error: `At least one of ${SETTING_KEYS.join(', ')} (boolean) or publicationSharePlatforms (array) is required` },
       { status: 400 }
     );
   }

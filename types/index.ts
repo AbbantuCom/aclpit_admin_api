@@ -182,13 +182,15 @@ export interface TeamMember {
  * Each has its own page (/resources/<category>); a tab only appears once its
  * category has something in it.
  */
-export const NEWS_CATEGORIES = ['research', 'news', 'events', 'newsletter'] as const;
+export const NEWS_CATEGORIES = ['research', 'annual-reports', 'news', 'events', 'newsletter', 'stories'] as const;
 export type NewsCategory = (typeof NEWS_CATEGORIES)[number];
 export const NEWS_CATEGORY_LABELS: Record<NewsCategory, string> = {
-  research: 'Research',
+  research: 'Research Reports and Policy Briefs',
+  'annual-reports': 'Annual Reports',
   news: 'News',
   events: 'Events',
   newsletter: 'Newsletter',
+  stories: 'Our Stories',
 };
 
 /**
@@ -206,7 +208,7 @@ export interface PublicationItem {
   id: string;
   title: string;
   description: string;
-  /** Research, News, Events or Newsletter — decides which tab of the site lists it. */
+  /** One of NEWS_CATEGORIES — decides which tab and menu entry of the site lists it. */
   newsCategory?: NewsCategory;
   /** Free-text tag shown on the card, e.g. "Policy Brief". */
   category: string;
@@ -220,6 +222,34 @@ export interface PublicationItem {
    * adding the switch never hides anything that was already live.
    */
   enabled?: boolean;
+}
+
+/**
+ * Where a Resources entry can be shared from the website, in button order.
+ * Which of these appear is chosen in the dashboard (Resources → sharing).
+ */
+export const SHARE_PLATFORMS = [
+  { key: 'facebook', label: 'Facebook', icon: 'bi-facebook' },
+  { key: 'x', label: 'X (Twitter)', icon: 'bi-twitter-x' },
+  { key: 'linkedin', label: 'LinkedIn', icon: 'bi-linkedin' },
+  { key: 'whatsapp', label: 'WhatsApp', icon: 'bi-whatsapp' },
+  { key: 'telegram', label: 'Telegram', icon: 'bi-telegram' },
+  { key: 'reddit', label: 'Reddit', icon: 'bi-reddit' },
+  { key: 'threads', label: 'Threads', icon: 'bi-threads' },
+  { key: 'bluesky', label: 'Bluesky', icon: 'bi-bluesky' },
+  { key: 'email', label: 'Email', icon: 'bi-envelope' },
+  { key: 'copy', label: 'Copy link', icon: 'bi-link-45deg' },
+] as const;
+
+export type SharePlatformKey = (typeof SHARE_PLATFORMS)[number]['key'];
+
+/** Offered until an editor picks their own. */
+export const DEFAULT_SHARE_PLATFORMS: SharePlatformKey[] = ['facebook', 'x', 'linkedin', 'whatsapp', 'email', 'copy'];
+
+/** Keeps only known platforms, in button order; anything else falls back to the defaults. */
+export function sharePlatformsOf(value: unknown): SharePlatformKey[] {
+  if (!Array.isArray(value)) return [...DEFAULT_SHARE_PLATFORMS];
+  return SHARE_PLATFORMS.map((p) => p.key).filter((k) => value.includes(k));
 }
 
 /**
@@ -238,7 +268,14 @@ export interface SiteSettings {
    * those count as on, which is how the page looked then.
    */
   servicesImagesEnabled?: boolean;
+  /** Whether Resources entries show share buttons. Missing counts as off. */
+  publicationSharingEnabled?: boolean;
+  /** Which share buttons appear when sharing is on. Missing → DEFAULT_SHARE_PLATFORMS. */
+  publicationSharePlatforms?: SharePlatformKey[];
 }
+
+/** The on/off settings — every SiteSettings key except the platform list. */
+export type BooleanSettingKey = Exclude<keyof SiteSettings, 'publicationSharePlatforms'>;
 
 export interface DialogueItem {
   id: string;
