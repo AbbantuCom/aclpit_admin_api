@@ -11,7 +11,7 @@ const SECTION_EDITOR_PATHS: Record<ContentSectionName, string> = {
   hero: '/admin/hero',
   about: '/admin/about',
   services: '/admin/services',
-  practiceAreas: '/admin/practice-areas',
+  practiceAreas: '/admin/programs',
   team: '/admin/team',
   publications: '/admin/publications',
   dialogues: '/admin/dialogues',

@@ -9,6 +9,7 @@ import { useSectionContent } from '../useSectionContent';
 import { defaultServices } from '@/lib/seed-data';
 import type { ServiceItem } from '@/types';
 import IconPicker from '../IconPicker';
+import SectionVisibilitySwitch from '../SectionVisibilitySwitch';
 
 const inputClass =
   'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-wine focus:ring-2 focus:ring-wine/15';
@@ -18,6 +19,12 @@ export default function ServicesEditor() {
   const [cards, setCards] = useState<ServiceItem[]>([...defaultServices].sort((a, b) => a.order - b.order));
   const { save, ...workflow } = useContentSave('services');
   const [expanded, setExpanded] = useState<string | null>(null);
+  /**
+   * Mirrors the "Show images" site setting. Off, the page lays items out like
+   * Programs, so the form matches the Programs form: no image fields. Images
+   * already uploaded are kept, ready for when the switch goes back on.
+   */
+  const [imagesOn, setImagesOn] = useState(true);
 
   useEffect(() => {
     if (content) setCards([...content].sort((a, b) => a.order - b.order));
@@ -79,6 +86,15 @@ export default function ServicesEditor() {
 
   return (
     <div className="space-y-4">
+      <SectionVisibilitySwitch
+        setting="servicesImagesEnabled"
+        label="Services"
+        title="Show images on Services"
+        onText="On — each item is shown beside its image. Items are shown as icon cards (like Programs) if none has an image."
+        offText="Off — items are shown as icon cards, like Programs. Uploaded images are kept for when you switch this back on."
+        onChange={setImagesOn}
+      />
+
       <div className="flex justify-end">
         <button onClick={addCard} className="bg-wine text-white text-sm px-4 py-2 rounded-xl hover:bg-wine-dark transition-colors">
           + Add Item
@@ -135,16 +151,20 @@ export default function ServicesEditor() {
                   ))}
                 </div>
               </div>
-              <ImageUpload
-                value={card.image}
-                onChange={(url) => update(card.id, { image: url })}
-                folder="services"
-                label="Card Image"
-              />
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Image Alt Text</label>
-                <input value={card.imageAlt} onChange={(e) => update(card.id, { imageAlt: e.target.value })} className={inputClass} />
-              </div>
+              {imagesOn && (
+                <>
+                  <ImageUpload
+                    value={card.image}
+                    onChange={(url) => update(card.id, { image: url })}
+                    folder="services"
+                    label="Card Image"
+                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Image Alt Text</label>
+                    <input value={card.imageAlt} onChange={(e) => update(card.id, { imageAlt: e.target.value })} className={inputClass} />
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

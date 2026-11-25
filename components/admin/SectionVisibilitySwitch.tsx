@@ -8,6 +8,12 @@ interface Props {
   setting: keyof SiteSettings;
   /** The section's name as visitors see it, e.g. "News & Events". */
   label: string;
+  /** Overrides for switches that do something other than show a section. */
+  title?: string;
+  onText?: string;
+  offText?: string;
+  /** Told the switch's value once loaded and after every change. */
+  onChange?: (enabled: boolean) => void;
 }
 
 /**
@@ -15,7 +21,7 @@ interface Props {
  * main-menu link). Takes effect immediately — it is not part of the
  * draft/publish workflow that the section's content goes through.
  */
-export default function SectionVisibilitySwitch({ setting, label }: Props) {
+export default function SectionVisibilitySwitch({ setting, label, title: titleOverride, onText, offText, onChange }: Props) {
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +31,10 @@ export default function SectionVisibilitySwitch({ setting, label }: Props) {
     fetch('/api/settings')
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
       .then((body: { settings: SiteSettings }) => {
-        if (!cancelled) setEnabled(body.settings[setting]);
+        if (cancelled) return;
+        const value = body.settings[setting] !== false;
+        setEnabled(value);
+        onChange?.(value);
       })
       .catch(() => {
         if (!cancelled) setError('Could not load the current setting.');
@@ -48,6 +57,7 @@ export default function SectionVisibilitySwitch({ setting, label }: Props) {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setEnabled(next);
+      onChange?.(next);
     } catch {
       setError('Could not save the change. Please try again.');
     } finally {
@@ -56,7 +66,7 @@ export default function SectionVisibilitySwitch({ setting, label }: Props) {
   }
 
   const loading = enabled === null && !error;
-  const title = `Show ${label} on the website`;
+  const title = titleOverride ?? `Show ${label} on the website`;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm p-5 mb-6 flex items-center gap-4">
@@ -66,8 +76,8 @@ export default function SectionVisibilitySwitch({ setting, label }: Props) {
           {loading
             ? 'Loading…'
             : enabled
-              ? `Live — the ${label} page is open to visitors and listed in the main menu.`
-              : `Hidden — the ${label} page is not shown and is left out of the main menu.`}
+              ? (onText ?? `Live — the ${label} page is open to visitors and listed in the main menu.`)
+              : (offText ?? `Hidden — the ${label} page is not shown and is left out of the main menu.`)}
         </p>
         {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
       </div>
