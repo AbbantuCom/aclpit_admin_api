@@ -21,6 +21,7 @@ const navItems = [
   { label: 'Team',            href: '/admin/team',          icon: '☺', section: 'team' },
   { label: 'Resources',       href: '/admin/publications',   icon: '▤', section: 'publications' },
   { label: 'Dialogues',       href: '/admin/dialogues',      icon: '▶', section: 'dialogues' },
+  { label: 'Careers',         href: '/admin/careers',        icon: '✦', section: 'careers' },
   { label: 'Contact',         href: '/admin/contact',        icon: '✉', section: 'contact' },
   { label: 'Messages',        href: '/admin/messages',       icon: '✎' },
   { label: 'Media Library',   href: '/admin/media',          icon: '▣' },

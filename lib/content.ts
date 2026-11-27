@@ -143,6 +143,7 @@ export const CONTENT_SECTIONS = [
   'team',
   'publications',
   'dialogues',
+  'careers',
   'contact',
   'footer',
 ] as const;
@@ -162,6 +163,7 @@ export const SECTION_LABELS: Record<ContentSectionName, string> = {
   team: 'Team',
   publications: 'Resources',
   dialogues: 'Dialogues',
+  careers: 'Careers',
   contact: 'Contact',
   footer: 'Footer',
 };

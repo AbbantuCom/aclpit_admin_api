@@ -14,6 +14,7 @@ const SECTION_ROUTES: Record<string, string> = {
   practiceAreas: '/admin/programs',
   publications: '/admin/publications',
   dialogues: '/admin/dialogues',
+  careers: '/admin/careers',
   contact: '/admin/contact',
 };
 

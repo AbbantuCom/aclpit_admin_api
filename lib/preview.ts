@@ -62,6 +62,7 @@ export const SECTION_PREVIEW_PATHS: Record<ContentSectionName, string> = {
   team: '/about#our-team',
   publications: '/resources',
   dialogues: '/dialogues',
+  careers: '/careers',
   contact: '/#contact',
   footer: '/',
 };

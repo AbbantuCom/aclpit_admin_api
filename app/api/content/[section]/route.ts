@@ -24,13 +24,17 @@ async function canReadDraft(req: NextRequest): Promise<boolean> {
 
 /**
  * Strips items an editor has switched off from the copy the public reads, so a
- * disabled publication or team member is not merely hidden by the site but never leaves the
+ * disabled publication, team member or job is not merely hidden by the site but never leaves the
  * API at all. The draft is left whole — the editor needs disabled items to be
  * able to switch them back on.
  */
 function toPublicView(section: string, data: unknown): unknown {
   if ((section === 'publications' || section === 'team') && Array.isArray(data)) {
     return data.filter((item: { enabled?: boolean }) => item?.enabled !== false);
+  }
+  if (section === 'careers' && data && typeof data === 'object' && Array.isArray((data as { jobs?: unknown }).jobs)) {
+    const careers = data as { jobs: { enabled?: boolean }[] };
+    return { ...careers, jobs: careers.jobs.filter((job) => job?.enabled !== false) };
   }
   return data;
 }

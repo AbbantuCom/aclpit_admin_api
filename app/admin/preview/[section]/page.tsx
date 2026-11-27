@@ -15,6 +15,7 @@ const SECTION_EDITOR_PATHS: Record<ContentSectionName, string> = {
   team: '/admin/team',
   publications: '/admin/publications',
   dialogues: '/admin/dialogues',
+  careers: '/admin/careers',
   contact: '/admin/contact',
   // No footer editor is mounted yet — send editors back to the dashboard.
   footer: '/admin',
