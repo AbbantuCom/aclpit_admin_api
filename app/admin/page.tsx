@@ -13,6 +13,7 @@ const sections = [
   { label: 'Programs',       href: '/admin/programs',       desc: 'The six thematic programs of the Centre’s work' },
   { label: 'Resources',      href: '/admin/publications',   desc: 'Research, publications, news, events and newsletters' },
   { label: 'Dialogues',      href: '/admin/dialogues',      desc: 'Legal Tech Dialogues video series entries' },
+  { label: 'Careers',        href: '/admin/careers',        desc: 'Job openings, deadlines and the email applications go to' },
   { label: 'Contact',        href: '/admin/contact',        desc: 'Contact info, office hours, map, socials' },
   { label: 'Users',          href: '/admin/users',          desc: 'Manage members, invite, transfer role', requiresUserManagement: true },
 ];

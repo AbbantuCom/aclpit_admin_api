@@ -9,6 +9,7 @@ import {
   defaultTeam,
   defaultPublications,
   defaultDialogues,
+  defaultCareers,
   defaultContact,
   defaultFooter,
 } from '@/lib/seed-data';
@@ -21,6 +22,7 @@ const sections = [
   { section: 'team',          data: defaultTeam },
   { section: 'publications',  data: defaultPublications },
   { section: 'dialogues',     data: defaultDialogues },
+  { section: 'careers',       data: defaultCareers },
   { section: 'contact',       data: defaultContact },
   { section: 'footer',        data: defaultFooter },
 ];

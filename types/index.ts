@@ -286,6 +286,48 @@ export interface DialogueItem {
   order: number;
 }
 
+/** Kinds of position a job posting can be, in the order the dashboard lists them. */
+export const JOB_TYPES = ['Full-time', 'Part-time', 'Contract', 'Consultancy', 'Internship', 'Fellowship', 'Volunteer'] as const;
+
+/** One vacancy on the Careers page. */
+export interface JobPosting {
+  id: string;
+  title: string;
+  /** Team or program the role sits in, e.g. "Research". Optional. */
+  department: string;
+  /** Where the role is based, e.g. "Kampala, Uganda" or "Remote". */
+  location: string;
+  /** One of JOB_TYPES. */
+  employmentType: string;
+  /** One or two sentences shown on the job's card in the list. */
+  summary: string;
+  /** "About the role" — paragraphs separated by a blank line. */
+  description: string;
+  responsibilities: string[];
+  /** Qualifications and experience. */
+  requirements: string[];
+  /** Last day to apply (YYYY-MM-DD, inclusive). Empty = open until filled. */
+  deadline: string;
+  /** When it was posted (YYYY-MM-DD). */
+  postedDate: string;
+  /** Overrides the page-wide application email for this one job. Empty = use that. */
+  applicationEmail?: string;
+  order: number;
+  /** Switched off → the job never leaves the API. Missing counts as on. */
+  enabled?: boolean;
+}
+
+/** The Careers page (Get Involved → Careers). */
+export interface CareersContent {
+  /** Short text at the top of the page. */
+  intro: string;
+  /** Where applications are emailed, shown on the page and used by every "Apply" button. */
+  applicationEmail: string;
+  /** What to send, shown with each job, e.g. "Send your CV and a cover letter…". */
+  howToApply: string;
+  jobs: JobPosting[];
+}
+
 /**
  * Every social platform the site can link to, in the order the icons appear.
  * `icon` is the Bootstrap Icons class. X keeps the key `twitter` so links
@@ -359,6 +401,7 @@ export interface SiteContent {
     | TeamMember[]
     | PublicationItem[]
     | DialogueItem[]
+    | CareersContent
     | ContactContent
     | FooterContent;
   updatedAt: string;

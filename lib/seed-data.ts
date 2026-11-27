@@ -6,6 +6,7 @@ import type {
   TeamMember,
   PublicationItem,
   DialogueItem,
+  CareersContent,
   ContactContent,
   FooterContent,
 } from '@/types';
@@ -454,6 +455,16 @@ export const defaultDialogues: DialogueItem[] = [
     order: 7,
   },
 ];
+
+/** Starts with no jobs — the page says there are no openings until one is added. */
+export const defaultCareers: CareersContent = {
+  intro:
+    'Join a team working at the intersection of law, technology and the public interest across Africa. Current openings are listed below.',
+  applicationEmail: 'info@aclpit.com',
+  howToApply:
+    'Send your CV and a cover letter explaining your interest in the role, with the job title in the subject line.',
+  jobs: [],
+};
 
 export const defaultContact: ContactContent = {
   title: "Let us shape Africa's digital future together",
